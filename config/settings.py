@@ -7,6 +7,17 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+
+def _env(name: str, default: str = "") -> str:
+    """Read an env var and keep only its first line, trimmed.
+
+    Tolerates dashboard paste mistakes (e.g. an extra line pasted into a
+    secret field) that would otherwise smuggle a newline into an HTTP header
+    and surface as httpx "Connection error.".
+    """
+    v = (os.getenv(name, default) or "").strip()
+    return v.splitlines()[0].strip() if v else ""
+
 # Paths
 CONFIG_DIR = BASE_DIR / "config"
 DATA_DIR = BASE_DIR / "data"
@@ -15,18 +26,18 @@ TOPICS_FILE = CONFIG_DIR / "topics.json"
 DB_PATH = DATA_DIR / "memory.db"
 
 # Anthropic (WriterAgent)
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-WRITER_MODEL = os.getenv("WRITER_MODEL", "claude-sonnet-4-20250514")
+ANTHROPIC_API_KEY = _env("ANTHROPIC_API_KEY")
+WRITER_MODEL = _env("WRITER_MODEL", "claude-sonnet-4-20250514")
 WRITER_MAX_TOKENS = 400
 
 # Threads Graph API (PublisherAgent) — publishes directly, no Postiz.
 # Long-lived token for the @tala.sav account (60-day; refresh before expiry).
 # Seeded into Supabase tala_token; this env var is only a first-run fallback.
-THREADS_ACCESS_TOKEN = os.getenv("THREADS_ACCESS_TOKEN", "")
+THREADS_ACCESS_TOKEN = _env("THREADS_ACCESS_TOKEN")
 
 # Supabase — single source of truth for state (posts, token, signals).
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://mukjpousdanernohanrt.supabase.co")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
+SUPABASE_URL = _env("SUPABASE_URL", "https://mukjpousdanernohanrt.supabase.co")
+SUPABASE_SERVICE_KEY = _env("SUPABASE_SERVICE_KEY")
 
 # Scheduler
 POST_INTERVAL_HOURS = int(os.getenv("POST_INTERVAL_HOURS", "1"))

@@ -33,7 +33,7 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def _run(self) -> None:
-        secret = os.getenv("CRON_SECRET")
+        secret = (os.getenv("CRON_SECRET") or "").strip()
         if secret and self.headers.get("Authorization") != f"Bearer {secret}":
             self._send(401, {"ok": False, "error": "unauthorized"})
             return

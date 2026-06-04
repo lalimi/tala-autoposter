@@ -183,7 +183,9 @@ def _to_contract(post: dict, tag: str) -> dict:
     }
 
 
-async def _collect_async(keywords: list[str], usernames: list[str]) -> dict:
+async def _collect_async(
+    keywords: list[str], usernames: list[str], max_total: int = MAX_TOTAL
+) -> dict:
     try:
         from playwright.async_api import async_playwright
     except ImportError:
@@ -224,7 +226,7 @@ async def _collect_async(keywords: list[str], usernames: list[str]) -> dict:
     # strongest posts first by reach (likes)
     kw_posts.sort(key=lambda r: r.get("likes", 0), reverse=True)
     prof_posts.sort(key=lambda r: r.get("likes", 0), reverse=True)
-    return {"keywords": kw_posts[:MAX_TOTAL], "profiles": prof_posts[:MAX_TOTAL]}
+    return {"keywords": kw_posts[:max_total], "profiles": prof_posts[:max_total]}
 
 
 def _run(coro):
@@ -238,17 +240,20 @@ def _run(coro):
         return asyncio.get_event_loop().run_until_complete(coro)
 
 
-def fetch_all(keywords: list[str], usernames: list[str]) -> dict:
+def fetch_all(
+    keywords: list[str], usernames: list[str], max_total: int = MAX_TOTAL
+) -> dict:
     """One browser session, both sources. Returns {'keywords':[], 'profiles':[]}.
 
     Returns empty lists on any failure (missing deps, expired/absent session,
-    network), which ParserAgent handles by emitting placeholder signals.
+    network). `max_total` caps each list; the signal refresher raises it to keep
+    broad keyword coverage.
     """
     keywords = keywords or []
     usernames = usernames or []
     if not keywords and not usernames:
         return {"keywords": [], "profiles": []}
-    return _run(_collect_async(keywords, usernames))
+    return _run(_collect_async(keywords, usernames, max_total))
 
 
 def fetch_posts(keywords: list[str]) -> list[dict]:

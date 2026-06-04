@@ -10,6 +10,7 @@ import sys
 from logging.handlers import TimedRotatingFileHandler
 
 from config import settings
+from pipeline import run_pipeline
 
 
 def _setup_logging() -> logging.Logger:
@@ -31,44 +32,6 @@ def _setup_logging() -> logging.Logger:
 logger = _setup_logging()
 
 
-def run_pipeline(publish: bool = True) -> str:
-    # Imported lazily so --stats / DB init need only stdlib + dotenv.
-    from agents.memory_agent import MemoryAgent
-    from agents.parser_agent import ParserAgent
-    from agents.writer_agent import WriterAgent
-
-    memory = MemoryAgent()
-    topic = memory.get_least_used_topic()
-    logger.info("topic selected: %s", topic)
-
-    brief = ParserAgent().run(topic)
-    post_text = WriterAgent().run(brief, memory)
-
-    fmt = brief.get("format", "auto")
-    row_id = memory.save_post(topic, fmt, post_text, None, "draft")
-    logger.info("draft | %s | %s", topic, post_text[:60].replace("\n", " "))
-
-    if not publish:
-        logger.info("publish skipped (test/dry-run)")
-        return post_text
-
-    from agents.publisher_agent import PublisherAgent
-
-    try:
-        result = PublisherAgent().publish(post_text)
-        post_id = result.get("post_id")
-        memory.mark_published(row_id, post_id)
-        logger.info(
-            "published | %s | id=%s | %s",
-            topic, post_id, post_text[:60].replace("\n", " "),
-        )
-    except Exception as exc:  # never crash the scheduler
-        memory.mark_failed(row_id)
-        logger.error("publish failed | %s | %s | kept as draft", topic, exc)
-
-    return post_text
-
-
 def _safe_run() -> None:
     """Scheduler entrypoint — swallow everything so the loop keeps running."""
     try:
@@ -87,7 +50,7 @@ def print_stats() -> None:
     print(f"{'published_at':<28} {'topic':<18} {'status':<10} text")
     for r in rows:
         ts = r["published_at"] or "-"
-        text = (r["post_text"] or "").replace("\n", " ")[:50]
+        text = (r.get("text") or "").replace("\n", " ")[:50]
         print(f"{ts:<28} {r['topic']:<18} {r['status']:<10} {text}")
 
 

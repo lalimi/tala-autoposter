@@ -21,7 +21,12 @@ WRITER_MAX_TOKENS = 400
 
 # Threads Graph API (PublisherAgent) — publishes directly, no Postiz.
 # Long-lived token for the @tala.sav account (60-day; refresh before expiry).
+# Seeded into Supabase tala_token; this env var is only a first-run fallback.
 THREADS_ACCESS_TOKEN = os.getenv("THREADS_ACCESS_TOKEN", "")
+
+# Supabase — single source of truth for state (posts, token, signals).
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://mukjpousdanernohanrt.supabase.co")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
 
 # Scheduler
 POST_INTERVAL_HOURS = int(os.getenv("POST_INTERVAL_HOURS", "1"))
@@ -29,6 +34,9 @@ POST_INTERVAL_HOURS = int(os.getenv("POST_INTERVAL_HOURS", "1"))
 # Logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
-# Make sure runtime directories exist
-DATA_DIR.mkdir(exist_ok=True)
-LOGS_DIR.mkdir(exist_ok=True)
+# Local runtime dirs (best-effort: serverless filesystems are read-only).
+for _d in (DATA_DIR, LOGS_DIR):
+    try:
+        _d.mkdir(exist_ok=True)
+    except OSError:
+        pass

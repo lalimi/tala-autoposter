@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.tala.refresh</string>
+
+    <!-- Runs the browser scraper and pushes fresh signals to Supabase, then
+         exits. Vercel reads those signals when it posts. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/lalitamirosnicenko/tala-autoposter/.venv/bin/python</string>
+        <string>-m</string>
+        <string>scripts.refresh_signals</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/lalitamirosnicenko/tala-autoposter</string>
+
+    <!-- Run at load, then every 6 hours. One-shot each time (no KeepAlive). -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>21600</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/lalitamirosnicenko/tala-autoposter/logs/refresh.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/lalitamirosnicenko/tala-autoposter/logs/refresh.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

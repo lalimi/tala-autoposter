@@ -34,6 +34,11 @@ WRITER_MAX_TOKENS = 400
 # a single post. Tala wants mostly chains, occasional singles. Tunable via env.
 CHAIN_PROBABILITY = float(_env("CHAIN_PROBABILITY", "0.8") or "0.8")
 
+# Max posts per chain. Capped at 3 so a whole chain finishes inside Vercel's 60s
+# function limit (each Threads publish round-trip is ~15s). On an always-on host
+# (VPS) with no time cap, set CHAIN_MAX_PARTS=5 in the env for richer guides.
+CHAIN_MAX_PARTS = int(_env("CHAIN_MAX_PARTS", "3") or "3")
+
 # Threads Graph API (PublisherAgent) — publishes directly, no Postiz.
 # Long-lived token for the @tala.sav account (60-day; refresh before expiry).
 # Seeded into Supabase tala_token; this env var is only a first-run fallback.

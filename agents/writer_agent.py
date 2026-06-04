@@ -112,11 +112,14 @@ class WriterAgent:
             text = self._trim(text)
         return text
 
-    def run_chain(self, brief: dict, memory, max_parts: int = 5) -> list[str]:
-        """Write a checklist / mini-guide as a 3-5 post chain. Returns the parts
-        (each <=500 chars). The pipeline publishes them as a Threads reply-chain."""
+    def run_chain(self, brief: dict, memory, max_parts: int | None = None) -> list[str]:
+        """Write a checklist / mini-guide as a short post chain. Returns the parts
+        (each <=500 chars). The pipeline publishes them as a Threads reply-chain.
+        Length is capped by settings.CHAIN_MAX_PARTS (3 on Vercel, more on a VPS)."""
         from anthropic import Anthropic
 
+        max_parts = max_parts or settings.CHAIN_MAX_PARTS
+        steps = max(1, max_parts - 1)  # parts after the hook
         recent_topics = memory.get_recent_topics()
         user_message = (
             "напиши ЛАНЦЮЖОК (thread) для threads — чек-лист або міні-гайд "
@@ -128,9 +131,10 @@ class WriterAgent:
             f"кут: {brief['angle']}\n\n"
             f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n\n"
             "формат ланцюжка:\n"
+            f"- РІВНО {max_parts} постів (1 хук + {steps} пункти), не більше.\n"
             "- 1-й пост: хук-обіцянка — що людина отримає, чому варто зберегти. коротко.\n"
-            "- далі 3-5 постів: конкретні пункти чек-листа або кроки гайду. "
-            "один пункт = один пост, з деталлю чи цифрою.\n"
+            f"- далі {steps} пост(и): конкретні пункти чек-листа або кроки гайду. "
+            "один пункт = один пост, з деталлю чи цифрою. остання частина — завершена думка.\n"
             "- це ГАЙД, тож структуровані короткі пункти й кроки тут доречні "
             "(виняток із правила про відсутність списків).\n"
             "- голос Tala: малі літери, без тире, тільки українською.\n"
@@ -140,7 +144,7 @@ class WriterAgent:
         )
         client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         raw = self._call(
-            client, [{"role": "user", "content": user_message}], max_tokens=1300
+            client, [{"role": "user", "content": user_message}], max_tokens=900
         )
         parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
         return [self._trim(p) for p in parts][:max_parts]

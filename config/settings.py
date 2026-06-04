@@ -30,6 +30,10 @@ ANTHROPIC_API_KEY = _env("ANTHROPIC_API_KEY")
 WRITER_MODEL = _env("WRITER_MODEL", "claude-sonnet-4-20250514")
 WRITER_MAX_TOKENS = 400
 
+# Share of runs that publish a multi-post CHAIN (checklist / guide) rather than
+# a single post. Tala wants mostly chains, occasional singles. Tunable via env.
+CHAIN_PROBABILITY = float(_env("CHAIN_PROBABILITY", "0.8") or "0.8")
+
 # Threads Graph API (PublisherAgent) — publishes directly, no Postiz.
 # Long-lived token for the @tala.sav account (60-day; refresh before expiry).
 # Seeded into Supabase tala_token; this env var is only a first-run fallback.

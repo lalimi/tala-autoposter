@@ -1,5 +1,8 @@
-"""Agent 2 — WriterAgent: write one Threads post in Tala's voice from a ResearchBrief."""
+"""Agent 2 — WriterAgent: write a Threads post (single) or chain (checklist/guide)
+in Tala's voice from a ResearchBrief."""
 from __future__ import annotations
+
+import re
 
 from config import settings
 
@@ -109,10 +112,43 @@ class WriterAgent:
             text = self._trim(text)
         return text
 
-    def _call(self, client, messages: list) -> str:
+    def run_chain(self, brief: dict, memory, max_parts: int = 5) -> list[str]:
+        """Write a checklist / mini-guide as a 3-5 post chain. Returns the parts
+        (each <=500 chars). The pipeline publishes them as a Threads reply-chain."""
+        from anthropic import Anthropic
+
+        recent_topics = memory.get_recent_topics()
+        user_message = (
+            "напиши ЛАНЦЮЖОК (thread) для threads — чек-лист або міні-гайд "
+            "на основі цього дослідження:\n\n"
+            f"тема: {brief['keyword']}\n"
+            f"сигнали: {brief['trend_signals']}\n"
+            f"що публікують топ-акаунти (орієнтир ФОРМАТУ, не копіювати): "
+            f"{brief.get('peer_signals', [])}\n"
+            f"кут: {brief['angle']}\n\n"
+            f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n\n"
+            "формат ланцюжка:\n"
+            "- 1-й пост: хук-обіцянка — що людина отримає, чому варто зберегти. коротко.\n"
+            "- далі 3-5 постів: конкретні пункти чек-листа або кроки гайду. "
+            "один пункт = один пост, з деталлю чи цифрою.\n"
+            "- це ГАЙД, тож структуровані короткі пункти й кроки тут доречні "
+            "(виняток із правила про відсутність списків).\n"
+            "- голос Tala: малі літери, без тире, тільки українською.\n"
+            "- кожен пост максимум 500 символів.\n"
+            "- розділяй пости рядком лише з трьох дефісів: ---\n"
+            "- поверни лише пости й роздільники, без нумерації й пояснень."
+        )
+        client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        raw = self._call(
+            client, [{"role": "user", "content": user_message}], max_tokens=1300
+        )
+        parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
+        return [self._trim(p) for p in parts][:max_parts]
+
+    def _call(self, client, messages: list, max_tokens: int | None = None) -> str:
         response = client.messages.create(
             model=self.model,
-            max_tokens=self.max_tokens,
+            max_tokens=max_tokens or self.max_tokens,
             system=SYSTEM_PROMPT,
             messages=messages,
         )

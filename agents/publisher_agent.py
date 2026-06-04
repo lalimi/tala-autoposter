@@ -27,28 +27,52 @@ class PublisherAgent:
         self.token = ""
 
     def publish(self, text: str) -> dict:
+        """Publish a single standalone post."""
         self.token = get_valid_token()  # refreshes itself near expiry
+        self._check_len(text)
+        pid = self._publish_one(text)
+        return {"post_id": pid, "parts": [pid], "raw": {"id": pid}}
+
+    def publish_thread(self, parts: list[str]) -> dict:
+        """Publish a reply-chain: post part 0, then each part as a reply to the
+        previous one (Threads `reply_to_id`)."""
+        self.token = get_valid_token()
+        parts = [p for p in parts if p and p.strip()]
+        if not parts:
+            raise ValueError("no parts to publish")
+        for p in parts:
+            self._check_len(p)
+
+        ids: list[str] = []
+        reply_to = None
+        for p in parts:
+            # Shorter per-part budget so a chain fits Vercel's 60s function cap.
+            pid = self._publish_one(p, reply_to_id=reply_to, timeout=25, interval=2)
+            ids.append(pid)
+            reply_to = pid
+        return {"post_id": ids[0], "parts": ids, "raw": {"ids": ids}}
+
+    @staticmethod
+    def _check_len(text: str) -> None:
         if len(text) > MAX_LEN:
             raise ValueError(f"post is {len(text)} chars; Threads limit is {MAX_LEN}")
 
-        # 1. create the media container
-        container = self._post("/me/threads", {"text": text, "media_type": "TEXT"})
+    def _publish_one(
+        self, text: str, reply_to_id: str | None = None,
+        timeout: int = 45, interval: int = 3,
+    ) -> str:
+        params = {"text": text, "media_type": "TEXT"}
+        if reply_to_id:
+            params["reply_to_id"] = reply_to_id  # makes this post a reply -> chain
+        container = self._post("/me/threads", params)
         creation_id = container.get("id")
         if not creation_id:
             raise RuntimeError(f"container creation failed: {container}")
-
-        # 2. wait until Meta finishes processing the container
-        self._await_ready(creation_id)
-
-        # 3. publish
+        self._await_ready(creation_id, timeout, interval)
         result = self._post("/me/threads_publish", {"creation_id": creation_id})
-        return {
-            "post_id": result.get("id"),
-            "creation_id": creation_id,
-            "raw": result,
-        }
+        return result.get("id")
 
-    def _await_ready(self, creation_id: str, timeout: int = 60) -> None:
+    def _await_ready(self, creation_id: str, timeout: int = 45, interval: int = 3) -> None:
         """Poll container status; raise on ERROR, return on FINISHED."""
         deadline = time.time() + timeout
         while time.time() < deadline:
@@ -58,7 +82,7 @@ class PublisherAgent:
                 return
             if code == "ERROR":
                 raise RuntimeError(f"container error: {status.get('error_message')}")
-            time.sleep(5)
+            time.sleep(interval)
         # Timed out waiting — let the publish call surface any real error.
 
     def _get(self, endpoint: str, params: dict) -> dict:

@@ -1,0 +1,8 @@
+# Extra deps for the MACHINE THAT SCRAPES (Mac/VPS) — not needed on Vercel.
+# Install with:  pip install -r requirements.txt -r requirements-scraper.txt
+#                playwright install chromium
+playwright>=1.44
+jmespath>=1.0
+nested-lookup>=0.2.25
+nest_asyncio>=1.6
+apscheduler>=3.10          # only for the all-local scheduler (main.py); not used on Vercel

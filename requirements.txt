@@ -1,12 +1,5 @@
+# Core deps — used by the Vercel function (api/cron.py) and the pipeline.
+# Kept lean so the serverless build stays small.
 anthropic>=0.40
-apscheduler>=3.10
 requests>=2.31
 python-dotenv>=1.0
-# sqlite3 is part of the Python 3.11+ standard library
-
-# Real Threads parser (parser/scraper.py) — no official API, scrapes via browser.
-# After install run once: playwright install chromium
-playwright>=1.44
-jmespath>=1.0
-nested-lookup>=0.2.25
-nest_asyncio>=1.6

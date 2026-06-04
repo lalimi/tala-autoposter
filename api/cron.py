@@ -43,8 +43,16 @@ class handler(BaseHTTPRequestHandler):
             text = run_pipeline(publish=True)
             self._send(200, {"ok": True, "preview": text[:100]})
         except Exception as exc:  # noqa: BLE001
+            import traceback
+
             logging.exception("pipeline failed")
-            self._send(500, {"ok": False, "error": str(exc)})
+            self._send(500, {
+                "ok": False,
+                "error": str(exc),
+                "type": type(exc).__name__,
+                "cause": repr(getattr(exc, "__cause__", None))[:300],
+                "trace": traceback.format_exc()[-1500:],
+            })
 
     # External cron services use GET or POST — accept both.
     do_GET = _run

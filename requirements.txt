@@ -1,5 +1,5 @@
 # Core deps — used by the Vercel function (api/cron.py) and the pipeline.
 # Kept lean so the serverless build stays small.
-anthropic>=0.40
+anthropic==0.105.2
 requests>=2.31
 python-dotenv>=1.0

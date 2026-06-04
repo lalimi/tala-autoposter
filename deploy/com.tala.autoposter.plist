@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.tala.autoposter</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/lalitamirosnicenko/tala-autoposter/.venv/bin/python</string>
+        <string>/Users/lalitamirosnicenko/tala-autoposter/main.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/lalitamirosnicenko/tala-autoposter</string>
+
+    <!-- Start at login and keep the scheduler alive if it ever exits. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <!-- Don't let a crash loop restart faster than every 5 min. -->
+    <key>ThrottleInterval</key>
+    <integer>300</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/lalitamirosnicenko/tala-autoposter/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/lalitamirosnicenko/tala-autoposter/logs/launchd.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

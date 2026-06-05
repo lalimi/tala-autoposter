@@ -18,9 +18,13 @@ jobs:
     steps:
       - name: Trigger Vercel /api/blacksea
         env:
-          VERCEL_BLACKSEA_CRON_URL: ${{ secrets.VERCEL_BLACKSEA_CRON_URL }}  # https://<app>.vercel.app/api/blacksea
+          # Reuse Tala's URL secret — same Vercel project/domain, just a
+          # different route. No extra secret to manage.
+          VERCEL_CRON_URL: ${{ secrets.VERCEL_CRON_URL }}   # https://<app>.vercel.app/api/cron
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -fsS -X POST "$VERCEL_BLACKSEA_CRON_URL" \
+          BLACKSEA_URL="${VERCEL_CRON_URL%/api/cron}/api/blacksea"
+          echo "POST $BLACKSEA_URL"
+          curl -fsS -X POST "$BLACKSEA_URL" \
             -H "Authorization: Bearer $CRON_SECRET" \
             -w "\nHTTP %{http_code}\n"

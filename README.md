@@ -108,9 +108,9 @@ empty and the writer works from the topic + angle alone.
    for the @blacksea account) on Vercel. It's a first-run seed only; afterwards
    it lives in `blacksea_token` and auto-refreshes like Tala's.
 3. **Cron** — `.github/workflows/blacksea-cron.yml` hits `/api/blacksea` 4×/day.
-   Add a `VERCEL_BLACKSEA_CRON_URL` repo secret
-   (`https://<app>.vercel.app/api/blacksea`); it reuses the existing
-   `CRON_SECRET`.
+   It reuses Tala's existing `VERCEL_CRON_URL` and `CRON_SECRET` secrets (same
+   Vercel project/domain, just a different route), so there's **no new secret to
+   add** — it just works once the branch is deployed.
 
 Test it before wiring the cron:
 

@@ -1,13 +1,22 @@
 # Tala Autonomous Threads Autoposter
 
-A 4-agent Python pipeline that researches, writes, and publishes one Threads post for
-**@tala.sav** every hour via a self-hosted [Postiz](https://github.com/gitroomhq/postiz-app)
-instance. Runs unattended on an Ubuntu VPS.
+A 4-agent Python pipeline that researches, writes, and publishes Threads posts.
+The same pipeline drives multiple accounts ("brands"), each with its own voice,
+topics, Supabase tables, Threads token, and cron endpoint:
+
+| Brand | Account | Voice | Cadence | Endpoint |
+|---|---|---|---|---|
+| `tala` | **@tala.sav** | personal, anxious-but-systemized, all-lowercase | every 2h | `/api/cron` |
+| `blacksea` | **@blacksea** | friendly-businesslike platform voice, no hype | 3-4×/day | `/api/blacksea` |
 
 ```
 MemoryAgent → ParserAgent → WriterAgent → MemoryAgent → PublisherAgent
-(pick topic)   (research)     (write post)   (save draft)   (publish to Postiz)
+(pick topic)   (research)     (write post)   (save draft)   (publish to Threads)
 ```
+
+Everything brand-specific lives in `config/brands.py` (a `Brand` is threaded
+through the pipeline and every agent). Adding a third account = one entry there
++ a topics file + an env token + three Supabase tables — no agent code changes.
 
 | Agent | File | Job |
 |---|---|---|
@@ -62,10 +71,16 @@ Copy the `id` of the Threads channel into `POSTIZ_INTEGRATION_ID`.
 ## Usage
 
 ```bash
-python main.py            # start the hourly scheduler (fires once immediately, then every hour)
-python main.py --test     # run once, print the post, DO NOT publish
-python main.py --dry-run  # run pipeline, print the post, skip the Postiz call
-python main.py --stats    # print the last 10 posts (topic + status) from memory.db
+python main.py                       # start the scheduler for @tala.sav (every POST_INTERVAL_HOURS)
+python main.py --test                # run once, print the post, DO NOT publish
+python main.py --dry-run             # run pipeline, print the post, skip publishing
+python main.py --publish             # run once and PUBLISH for real
+python main.py --stats               # print the last 10 posts (topic + status)
+
+# Any command takes --brand to target another account:
+python main.py --brand blacksea --test
+python main.py --brand blacksea --publish
+python main.py --brand blacksea --stats
 ```
 
 On first run `data/memory.db` is auto-created and `topic_rotation` is seeded from
@@ -73,6 +88,36 @@ On first run `data/memory.db` is auto-created and `topic_rotation` is seeded fro
 
 > `--test` / `--dry-run` still pick a topic (bumps rotation) and write a `draft` row, so
 > they touch `memory.db`. Delete `data/memory.db` to reset.
+
+## Brands: the @blacksea account
+
+`blacksea` is the marketplace's own brand account. Same pipeline, different
+`Brand` (`config/brands.py`): a calm, friendly-businesslike voice that posts
+something useful 3-4×/day — platform features, getting authors to upload their
+first product, helping buyers find what they need — without hype or clickbait.
+Its rotation lives in `config/blacksea_topics.json`, and it leans on single
+posts (occasional short tips chains) via `BLACKSEA_CHAIN_PROBABILITY` (default
+0.2). It has no scraper: its posts are evergreen, so `blacksea_signals` stays
+empty and the writer works from the topic + angle alone.
+
+**One-time setup:**
+
+1. **Supabase tables** — run `deploy/blacksea_tables.sql` once (mirrors the
+   `tala_*` schema): `blacksea_posts`, `blacksea_token`, `blacksea_signals`.
+2. **Token** — set `BLACKSEA_THREADS_ACCESS_TOKEN` (a long-lived Threads token
+   for the @blacksea account) on Vercel. It's a first-run seed only; afterwards
+   it lives in `blacksea_token` and auto-refreshes like Tala's.
+3. **Cron** — `.github/workflows/blacksea-cron.yml` hits `/api/blacksea` 4×/day.
+   It reuses Tala's existing `VERCEL_CRON_URL` and `CRON_SECRET` secrets (same
+   Vercel project/domain, just a different route), so there's **no new secret to
+   add** — it just works once the branch is deployed.
+
+Test it before wiring the cron:
+
+```bash
+python main.py --brand blacksea --test     # generate, print, don't publish
+python main.py --brand blacksea --publish  # publish one post for real
+```
 
 ## Plugging in the real parser
 

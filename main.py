@@ -10,6 +10,7 @@ import sys
 from logging.handlers import TimedRotatingFileHandler
 
 from config import settings
+from config.brands import get_brand
 from pipeline import run_pipeline
 
 
@@ -32,18 +33,18 @@ def _setup_logging() -> logging.Logger:
 logger = _setup_logging()
 
 
-def _safe_run() -> None:
+def _safe_run(brand) -> None:
     """Scheduler entrypoint — swallow everything so the loop keeps running."""
     try:
-        run_pipeline(publish=True)
+        run_pipeline(brand, publish=True)
     except Exception as exc:
         logger.exception("pipeline error: %s", exc)
 
 
-def print_stats() -> None:
+def print_stats(brand) -> None:
     from agents.memory_agent import MemoryAgent
 
-    rows = MemoryAgent().recent_posts(10)
+    rows = MemoryAgent(brand).recent_posts(10)
     if not rows:
         print("no posts yet")
         return
@@ -56,6 +57,8 @@ def print_stats() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Tala autonomous Threads autoposter")
+    parser.add_argument("--brand", default="tala",
+                        help="which account to run: tala (default) or blacksea")
     parser.add_argument("--test", action="store_true",
                         help="run pipeline once, print post, do NOT publish")
     parser.add_argument("--dry-run", action="store_true",
@@ -63,22 +66,24 @@ def main() -> None:
     parser.add_argument("--publish", action="store_true",
                         help="run pipeline once and PUBLISH for real to Threads")
     parser.add_argument("--stats", action="store_true",
-                        help="print the last 10 posts from memory.db")
+                        help="print the last 10 posts from this brand's history")
     args = parser.parse_args()
 
+    brand = get_brand(args.brand)
+
     if args.stats:
-        print_stats()
+        print_stats(brand)
         return
 
     if args.test or args.dry_run:
-        text = run_pipeline(publish=False)
+        text = run_pipeline(brand, publish=False)
         print("\n----- GENERATED POST -----\n")
         print(text)
         print("\n--------------------------\n")
         return
 
     if args.publish:
-        text = run_pipeline(publish=True)
+        text = run_pipeline(brand, publish=True)
         print("\n----- PUBLISHED POST -----\n")
         print(text)
         print("\n--------------------------\n")
@@ -93,11 +98,12 @@ def main() -> None:
         _safe_run,
         "interval",
         hours=settings.POST_INTERVAL_HOURS,
+        args=[brand],
     )
     logger.info(
-        "scheduler started | every %sh | first auto-post in %sh "
+        "scheduler started | brand=%s | every %sh | first auto-post in %sh "
         "(run `python main.py --publish` to post now)",
-        settings.POST_INTERVAL_HOURS, settings.POST_INTERVAL_HOURS,
+        brand.key, settings.POST_INTERVAL_HOURS, settings.POST_INTERVAL_HOURS,
     )
     try:
         scheduler.start()

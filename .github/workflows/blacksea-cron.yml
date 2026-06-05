@@ -1,0 +1,30 @@
+name: blacksea post cron
+
+# Triggers the Vercel blacksea endpoint 4x/day (Vercel Hobby crons only fire once
+# a day, so the real cadence lives here). Times are UTC; chosen to land around
+# Kyiv daytime (≈09:00, 12:00, 16:00, 19:00 EEST). GitHub may delay scheduled
+# runs under load, and disables schedules after 60 days of repo inactivity.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+    - cron: "0 9 * * *"
+    - cron: "0 13 * * *"
+    - cron: "0 16 * * *"
+  workflow_dispatch: {}      # manual "Run workflow" button
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel /api/blacksea
+        env:
+          # Reuse Tala's URL secret — same Vercel project/domain, just a
+          # different route. No extra secret to manage.
+          VERCEL_CRON_URL: ${{ secrets.VERCEL_CRON_URL }}   # https://<app>.vercel.app/api/cron
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          BLACKSEA_URL="${VERCEL_CRON_URL%/api/cron}/api/blacksea"
+          echo "POST $BLACKSEA_URL"
+          curl -fsS -X POST "$BLACKSEA_URL" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -w "\nHTTP %{http_code}\n"

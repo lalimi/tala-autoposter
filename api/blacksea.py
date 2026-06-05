@@ -1,6 +1,6 @@
-"""Vercel serverless entry — one @tala.sav post tick per request.
+"""Vercel serverless entry — one @blacksea post tick per request.
 
-Triggered every 2h by GitHub Actions (.github/workflows/cron.yml). See
+Triggered 3-4x/day by GitHub Actions (.github/workflows/blacksea-cron.yml). See
 webhandler.py for the shared logic, auth, and required env vars.
 """
 import os
@@ -17,4 +17,4 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s"
 )
 
-handler = make_handler("tala")
+handler = make_handler("blacksea")

@@ -11,10 +11,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import logging
 
-from webhandler import make_handler
+from webhandler import BaseBrandHandler
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s"
 )
 
-handler = make_handler("blacksea")
+
+# Vercel detects this `class handler` statically — keep it an explicit class.
+class handler(BaseBrandHandler):
+    brand_key = "blacksea"

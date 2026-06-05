@@ -34,6 +34,12 @@ WRITER_MAX_TOKENS = 400
 # a single post. Tala wants mostly chains, occasional singles. Tunable via env.
 CHAIN_PROBABILITY = float(_env("CHAIN_PROBABILITY", "0.8") or "0.8")
 
+# Same knob for the @blacksea brand account, but flipped: mostly single friendly
+# posts, only occasionally a short tips chain.
+BLACKSEA_CHAIN_PROBABILITY = float(
+    _env("BLACKSEA_CHAIN_PROBABILITY", "0.2") or "0.2"
+)
+
 # Max posts per chain. Capped at 3 so a whole chain finishes inside Vercel's 60s
 # function limit (each Threads publish round-trip is ~15s). On an always-on host
 # (VPS) with no time cap, set CHAIN_MAX_PARTS=5 in the env for richer guides.
@@ -43,6 +49,10 @@ CHAIN_MAX_PARTS = int(_env("CHAIN_MAX_PARTS", "3") or "3")
 # Long-lived token for the @tala.sav account (60-day; refresh before expiry).
 # Seeded into Supabase tala_token; this env var is only a first-run fallback.
 THREADS_ACCESS_TOKEN = _env("THREADS_ACCESS_TOKEN")
+
+# Long-lived token for the @blacksea brand account. Seeded into Supabase
+# blacksea_token on first run; this env var is only the first-run fallback.
+BLACKSEA_THREADS_ACCESS_TOKEN = _env("BLACKSEA_THREADS_ACCESS_TOKEN")
 
 # Supabase — single source of truth for state (posts, token, signals).
 SUPABASE_URL = _env("SUPABASE_URL", "https://mukjpousdanernohanrt.supabase.co")

@@ -6,7 +6,8 @@ No Postiz. Two-step publish per Meta's Threads API:
      (Meta needs a few seconds to process the container)
   3. POST /me/threads_publish (creation_id)        -> published post id
 
-Auth: THREADS_ACCESS_TOKEN — a long-lived token for the @tala.sav account.
+Auth: a long-lived token for the target account, resolved per brand by
+token_manager (the @tala.sav or @blacksea account).
 Threads text posts are capped at 500 characters.
 """
 from __future__ import annotations
@@ -16,19 +17,21 @@ import time
 import requests
 
 from agents.token_manager import get_valid_token
+from config.brands import TALA, Brand
 
 BASE_URL = "https://graph.threads.net/v1.0"
 MAX_LEN = 500
 
 
 class PublisherAgent:
-    def __init__(self):
+    def __init__(self, brand: Brand = TALA):
+        self.brand = brand
         # Resolved at publish time so the scheduler picks up auto-refreshes.
         self.token = ""
 
     def publish(self, text: str) -> dict:
         """Publish a single standalone post."""
-        self.token = get_valid_token()  # refreshes itself near expiry
+        self.token = get_valid_token(self.brand)  # refreshes itself near expiry
         self._check_len(text)
         pid = self._publish_one(text)
         return {"post_id": pid, "parts": [pid], "raw": {"id": pid}}
@@ -36,7 +39,7 @@ class PublisherAgent:
     def publish_thread(self, parts: list[str]) -> dict:
         """Publish a reply-chain: post part 0, then each part as a reply to the
         previous one (Threads `reply_to_id`)."""
-        self.token = get_valid_token()
+        self.token = get_valid_token(self.brand)
         parts = [p for p in parts if p and p.strip()]
         if not parts:
             raise ValueError("no parts to publish")

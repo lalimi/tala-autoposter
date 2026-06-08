@@ -48,8 +48,13 @@ class BaseBrandHandler(BaseHTTPRequestHandler):
             from config.brands import get_brand
             from pipeline import run_pipeline
 
-            text = run_pipeline(get_brand(self.brand_key), publish=True)
-            self._send(200, {"ok": True, "brand": self.brand_key, "preview": text[:100]})
+            text = run_pipeline(
+                get_brand(self.brand_key), publish=True, respect_min_gap=True
+            )
+            if text is None:  # self-throttled: last post too recent
+                self._send(200, {"ok": True, "brand": self.brand_key, "skipped": "min_gap"})
+            else:
+                self._send(200, {"ok": True, "brand": self.brand_key, "preview": text[:100]})
         except Exception as exc:  # noqa: BLE001
             # Log full detail server-side (Vercel logs); never echo it in the
             # response — tracebacks can contain secrets (e.g. the API key).

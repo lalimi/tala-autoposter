@@ -40,6 +40,13 @@ BLACKSEA_CHAIN_PROBABILITY = float(
     _env("BLACKSEA_CHAIN_PROBABILITY", "0.2") or "0.2"
 )
 
+# Self-throttle: the minimum minutes between published posts per brand. The cron
+# fires often (every ~30 min) but the pipeline skips a tick if the last post is
+# newer than this — so a dropped/delayed GitHub run is caught by the next one
+# instead of leaving a gap. Tala ≈ every 2h; blacksea ≈ 3-4 posts across the day.
+TALA_MIN_GAP_MINUTES = int(_env("POST_MIN_GAP_MINUTES", "115") or "115")
+BLACKSEA_MIN_GAP_MINUTES = int(_env("BLACKSEA_MIN_GAP_MINUTES", "210") or "210")
+
 # Max posts per chain. Capped at 3 so a whole chain finishes inside Vercel's 60s
 # function limit (each Threads publish round-trip is ~15s). On an always-on host
 # (VPS) with no time cap, set CHAIN_MAX_PARTS=5 in the env for richer guides.

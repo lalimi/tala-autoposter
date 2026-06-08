@@ -111,6 +111,19 @@ def recent_topics(hours: int = 48, prefix: str = "tala") -> list[str]:
     return list({r["topic"] for r in rows})
 
 
+def minutes_since_last_post(prefix: str = "tala") -> float | None:
+    """Minutes since this brand's most recent PUBLISHED post, or None if never.
+    Used by the self-throttle so a dropped cron run is caught by the next one."""
+    rows = _req("GET", f"{prefix}_posts", params={
+        "select": "published_at", "status": "eq.published",
+        "order": "published_at.desc", "limit": 1,
+    }) or []
+    if not rows or not rows[0].get("published_at"):
+        return None
+    return (datetime.now(timezone.utc).timestamp()
+            - _iso_to_epoch(rows[0]["published_at"])) / 60
+
+
 def last_published_text(prefix: str = "tala") -> str:
     rows = _req("GET", f"{prefix}_posts", params={
         "select": "text", "status": "eq.published",

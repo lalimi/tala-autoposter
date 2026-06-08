@@ -18,6 +18,14 @@ Everything brand-specific lives in `config/brands.py` (a `Brand` is threaded
 through the pipeline and every agent). Adding a third account = one entry there
 + a topics file + an env token + three Supabase tables — no agent code changes.
 
+**Cadence is self-throttling.** GitHub's scheduled crons are unreliable (they
+delay and silently drop runs at the top of the hour), so each workflow fires
+every 30 min and the endpoint *decides* whether to post: it skips unless the
+last post is older than the brand's `min_gap_minutes` (`POST_MIN_GAP_MINUTES` ≈
+2h for tala, `BLACKSEA_MIN_GAP_MINUTES` ≈ 3.5h for blacksea). A dropped/late run
+is simply caught by the next slot, so the average cadence holds. Manual runs
+(`main.py`, the "Run workflow" button) are never throttled.
+
 | Agent | File | Job |
 |---|---|---|
 | ParserAgent | `agents/parser_agent.py` | gather raw signals into a ResearchBrief (does not write) |

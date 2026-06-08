@@ -69,6 +69,16 @@ def main() -> None:
         store.replace_signals("peer", peer_rows)
     log.info("stored %d keyword + %d peer signals", len(kw_rows), len(peer_rows))
 
+    # Queue keyword posts as comment candidates (those that carry a Threads id).
+    targets = [
+        {"thread_id": p["id"], "username": p.get("source"), "text": p.get("text", ""),
+         "url": p.get("url"), "likes": p.get("likes", 0), "keyword": p.get("keyword")}
+        for p in data.get("keywords", []) if p.get("id") and p.get("text")
+    ]
+    if targets:
+        store.save_comment_targets(targets)
+        log.info("queued %d comment targets", len(targets))
+
 
 if __name__ == "__main__":
     main()

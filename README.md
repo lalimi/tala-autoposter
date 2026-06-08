@@ -127,6 +127,32 @@ python main.py --brand blacksea --test     # generate, print, don't publish
 python main.py --brand blacksea --publish  # publish one post for real
 ```
 
+## Commenting (tala replies under other people's posts)
+
+Besides publishing, tala can **reply under other people's posts** found by
+keyword — a separate "comment" tick:
+
+```
+scraper (keyword search) → tala_comment_targets → CommentAgent → reply_to_id → Threads
+```
+
+- **Discovery** is the scraper's job (no browser on Vercel): `scripts/refresh_signals.py`
+  now also queues keyword posts (with their Threads media id) into
+  `tala_comment_targets` (run `deploy/comment_targets.sql` once). Keep the
+  scraper running or the queue dries up and every tick is a no-op.
+- **Replying**: `pipeline.run_comment()` picks the freshest un-commented
+  candidate, writes a short, relevant, no-pitch reply in Tala's voice, and posts
+  it via the Threads API `reply_to_id`. It self-throttles on
+  `COMMENT_MIN_GAP_MINUTES` (~90 min) and skips when the queue is empty.
+- **Trigger**: endpoint `/api/comment` (GitHub Actions `comment-cron.yml`, reuses
+  `VERCEL_CRON_URL`/`CRON_SECRET`), or locally/VPS: `python main.py --comment`
+  (`--comment --dry-run` to preview without posting).
+
+> Only `tala` comments (`comments_enabled` in `config/brands.py`). Replying to
+> strangers is rate-limited by design and kept non-spammy — no links, no CTA.
+> Whether the Threads API accepts a reply to a *scraped* post id depends on the
+> token's permissions and the target's reply settings; verify with one live tick.
+
 ## Plugging in the real parser
 
 `parser/scraper.py` is a **placeholder** returning mock signals so the pipeline runs out

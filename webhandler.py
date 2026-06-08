@@ -28,9 +28,12 @@ from http.server import BaseHTTPRequestHandler
 
 
 class BaseBrandHandler(BaseHTTPRequestHandler):
-    """One post tick for `brand_key`. Subclasses just set the brand."""
+    """One tick for `brand_key`. Subclasses set the brand and (optionally) mode.
+    mode="post" publishes an original post; mode="comment" replies under a
+    scraped candidate post."""
 
     brand_key = "tala"  # overridden by each api/ endpoint
+    mode = "post"       # "post" | "comment"
 
     def _send(self, code: int, body: dict) -> None:
         payload = json.dumps(body).encode()
@@ -46,19 +49,25 @@ class BaseBrandHandler(BaseHTTPRequestHandler):
             return
         try:
             from config.brands import get_brand
-            from pipeline import run_pipeline
 
-            text = run_pipeline(
-                get_brand(self.brand_key), publish=True, respect_min_gap=True
-            )
-            if text is None:  # self-throttled: last post too recent
-                self._send(200, {"ok": True, "brand": self.brand_key, "skipped": "min_gap"})
+            brand = get_brand(self.brand_key)
+            if self.mode == "comment":
+                from pipeline import run_comment
+                text = run_comment(brand, publish=True, respect_min_gap=True)
             else:
-                self._send(200, {"ok": True, "brand": self.brand_key, "preview": text[:100]})
+                from pipeline import run_pipeline
+                text = run_pipeline(brand, publish=True, respect_min_gap=True)
+
+            body = {"ok": True, "brand": self.brand_key, "mode": self.mode}
+            if text is None:  # self-throttled / nothing to do
+                body["skipped"] = True
+            else:
+                body["preview"] = text[:100]
+            self._send(200, body)
         except Exception as exc:  # noqa: BLE001
             # Log full detail server-side (Vercel logs); never echo it in the
             # response — tracebacks can contain secrets (e.g. the API key).
-            logging.exception("pipeline failed (%s)", self.brand_key)
+            logging.exception("%s tick failed (%s)", self.mode, self.brand_key)
             self._send(500, {"ok": False, "error": type(exc).__name__})
 
     # External cron services use GET or POST — accept both.

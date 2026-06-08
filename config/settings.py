@@ -47,6 +47,14 @@ BLACKSEA_CHAIN_PROBABILITY = float(
 TALA_MIN_GAP_MINUTES = int(_env("POST_MIN_GAP_MINUTES", "115") or "115")
 BLACKSEA_MIN_GAP_MINUTES = int(_env("BLACKSEA_MIN_GAP_MINUTES", "210") or "210")
 
+# Commenting (replying under other people's posts). Only tala comments for now.
+# Candidates are scraped by keyword (scripts/refresh_signals.py) into
+# {prefix}_comment_targets; the /api/comment endpoint replies to the freshest one
+# and self-throttles on this gap so it never spams.
+TALA_COMMENT_MIN_GAP_MINUTES = int(
+    _env("COMMENT_MIN_GAP_MINUTES", "90") or "90"
+)
+
 # Max posts per chain. Capped at 3 so a whole chain finishes inside Vercel's 60s
 # function limit (each Threads publish round-trip is ~15s). On an always-on host
 # (VPS) with no time cap, set CHAIN_MAX_PARTS=5 in the env for richer guides.

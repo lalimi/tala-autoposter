@@ -180,6 +180,8 @@ def _to_contract(post: dict, tag: str) -> dict:
         "url": post.get("url", ""),
         "keyword": tag,
         "likes": post.get("likes", 0),
+        # Threads media id — needed to reply under this post (CommentAgent).
+        "id": post.get("id", ""),
     }
 
 

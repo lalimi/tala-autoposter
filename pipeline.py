@@ -85,3 +85,54 @@ def run_pipeline(
                      brand.key, fmt, topic, exc)
 
     return post_text
+
+
+def run_comment(
+    brand: Brand = TALA, publish: bool = True, respect_min_gap: bool = False
+) -> str | None:
+    """One comment tick: reply under someone else's post (a scraped candidate).
+
+    Returns the reply text, or None when skipped (throttled / disabled / no
+    candidate). Never raises — a publish failure marks the target failed.
+    """
+    import store
+
+    if not brand.comments_enabled:
+        logger.info("[%s] comments disabled", brand.key)
+        return None
+
+    if respect_min_gap and brand.comment_min_gap_minutes:
+        mins = store.minutes_since_last_comment(brand.table_prefix)
+        if mins is not None and mins < brand.comment_min_gap_minutes:
+            logger.info("[%s] comment skip: last %.0f min ago (< %d)",
+                        brand.key, mins, brand.comment_min_gap_minutes)
+            return None
+
+    target = store.next_comment_target(brand.table_prefix)
+    if not target:
+        logger.info("[%s] no comment targets (run the scraper)", brand.key)
+        return None
+
+    from agents.writer_agent import WriterAgent
+
+    text = WriterAgent(brand).run_comment(target)
+    logger.info("[%s] comment draft -> @%s | %s",
+                brand.key, target.get("username"), text[:60].replace("\n", " "))
+
+    if not publish:
+        return text
+
+    from agents.publisher_agent import PublisherAgent
+
+    try:
+        result = PublisherAgent(brand).reply_to(text, target["thread_id"])
+        store.mark_commented(target["id"], result.get("post_id"), text,
+                             brand.table_prefix)
+        logger.info("[%s] commented | @%s | id=%s",
+                    brand.key, target.get("username"), result.get("post_id"))
+    except Exception as exc:  # never crash the handler
+        store.mark_comment_failed(target["id"], brand.table_prefix)
+        logger.error("[%s] comment failed | @%s | %s",
+                     brand.key, target.get("username"), exc)
+
+    return text

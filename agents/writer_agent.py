@@ -117,6 +117,27 @@ class WriterAgent:
         parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
         return [self._trim(p) for p in parts][:max_parts]
 
+    def run_comment(self, target: dict) -> str:
+        """Write a short, natural reply to someone else's post, in the brand
+        voice. Reactive and relevant — no pitch, no link, no CTA."""
+        from anthropic import Anthropic
+
+        user_message = (
+            "ось чужий пост у threads, під яким ти хочеш залишити природний коментар:\n\n"
+            f"автор: @{target.get('username', '')}\n"
+            f"пост: «{(target.get('text') or '').strip()[:600]}»\n\n"
+            "напиши коротку живу відповідь у твоєму голосі:\n"
+            "- 1-2 короткі речення, максимум ~250 символів\n"
+            "- реагуй саме на зміст цього поста, по суті, як жива людина в коментарях\n"
+            "- нічого не рекламуй, без посилань, без згадки своїх продуктів, без CTA\n"
+            "- не починай зі звертання на кшталт 'привіт', одразу думка\n"
+            "- поверни лише текст коментаря, без лапок і пояснень"
+        )
+        client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        text = self._call(client, [{"role": "user", "content": user_message}],
+                          max_tokens=200)
+        return self._trim(text)
+
     def _call(self, client, messages: list, max_tokens: int | None = None) -> str:
         response = client.messages.create(
             model=self.model,

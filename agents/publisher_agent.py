@@ -36,6 +36,14 @@ class PublisherAgent:
         pid = self._publish_one(text)
         return {"post_id": pid, "parts": [pid], "raw": {"id": pid}}
 
+    def reply_to(self, text: str, reply_to_id: str) -> dict:
+        """Publish a single post as a reply UNDER another thread (a comment).
+        `reply_to_id` is the target post's Threads media id."""
+        self.token = get_valid_token(self.brand)
+        self._check_len(text)
+        pid = self._publish_one(text, reply_to_id=reply_to_id, timeout=25, interval=2)
+        return {"post_id": pid, "parts": [pid], "raw": {"id": pid}}
+
     def publish_thread(self, parts: list[str]) -> dict:
         """Publish a reply-chain: post part 0, then each part as a reply to the
         previous one (Threads `reply_to_id`)."""

@@ -192,3 +192,51 @@ def replace_signals(kind: str, rows: list[dict], prefix: str = "tala") -> None:
          prefer="return=minimal")
     if rows:
         _req("POST", f"{prefix}_signals", json=rows, prefer="return=minimal")
+
+
+# ── comment targets ────────────────────────────────────────────────────────
+# Candidates (other people's posts) to reply to. Populated by the scraper,
+# consumed by the /api/comment endpoint. Upsert on thread_id so re-scraping
+# never duplicates a row or resets one we've already commented on.
+
+def save_comment_targets(rows: list[dict], prefix: str = "tala") -> None:
+    """Insert fresh candidates; ignore ones we already have (by thread_id)."""
+    rows = [r for r in rows if r.get("thread_id")]
+    if not rows:
+        return
+    _req("POST", f"{prefix}_comment_targets",
+         params={"on_conflict": "thread_id"},
+         json=rows, prefer="resolution=ignore-duplicates,return=minimal")
+
+
+def next_comment_target(prefix: str = "tala") -> dict | None:
+    """Freshest un-commented candidate (most recently scraped)."""
+    rows = _req("GET", f"{prefix}_comment_targets", params={
+        "select": "id,thread_id,username,text,url,likes,keyword",
+        "status": "eq.new", "order": "id.desc", "limit": 1,
+    }) or []
+    return rows[0] if rows else None
+
+
+def mark_commented(target_id: int, reply_post_id, reply_text: str,
+                   prefix: str = "tala") -> None:
+    _req("PATCH", f"{prefix}_comment_targets", params={"id": f"eq.{target_id}"},
+         json={"status": "commented", "reply_post_id": reply_post_id,
+               "reply_text": reply_text, "commented_at": _now_iso()},
+         prefer="return=minimal")
+
+
+def mark_comment_failed(target_id: int, prefix: str = "tala") -> None:
+    _req("PATCH", f"{prefix}_comment_targets", params={"id": f"eq.{target_id}"},
+         json={"status": "failed"}, prefer="return=minimal")
+
+
+def minutes_since_last_comment(prefix: str = "tala") -> float | None:
+    rows = _req("GET", f"{prefix}_comment_targets", params={
+        "select": "commented_at", "status": "eq.commented",
+        "order": "commented_at.desc", "limit": 1,
+    }) or []
+    if not rows or not rows[0].get("commented_at"):
+        return None
+    return (datetime.now(timezone.utc).timestamp()
+            - _iso_to_epoch(rows[0]["commented_at"])) / 60

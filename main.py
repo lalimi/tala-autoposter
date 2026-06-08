@@ -11,7 +11,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 from config import settings
 from config.brands import get_brand
-from pipeline import run_pipeline
+from pipeline import run_comment, run_pipeline
 
 
 def _setup_logging() -> logging.Logger:
@@ -65,6 +65,8 @@ def main() -> None:
                         help="run pipeline, print post, skip publishing")
     parser.add_argument("--publish", action="store_true",
                         help="run pipeline once and PUBLISH for real to Threads")
+    parser.add_argument("--comment", action="store_true",
+                        help="reply once under a scraped candidate post and PUBLISH")
     parser.add_argument("--stats", action="store_true",
                         help="print the last 10 posts from this brand's history")
     args = parser.parse_args()
@@ -73,6 +75,13 @@ def main() -> None:
 
     if args.stats:
         print_stats(brand)
+        return
+
+    if args.comment:
+        text = run_comment(brand, publish=not (args.test or args.dry_run))
+        print("\n----- COMMENT -----\n")
+        print(text or "(skipped: throttled / disabled / no candidate)")
+        print("\n-------------------\n")
         return
 
     if args.test or args.dry_run:

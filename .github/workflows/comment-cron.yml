@@ -1,0 +1,28 @@
+name: tala comment cron
+
+# Replies under other people's posts (candidates scraped by keyword). Fires every
+# 30 min in the daytime window; the endpoint SELF-THROTTLES on
+# TALA_COMMENT_MIN_GAP_MINUTES (~90 min) and skips when there are no fresh
+# candidates, so it never spams. Reuses Tala's VERCEL_CRON_URL + CRON_SECRET
+# (same domain, /api/comment route) — no new secret.
+# NOTE: needs the scraper (scripts/refresh_signals.py) running to keep
+# tala_comment_targets populated, otherwise every tick is a no-op.
+on:
+  schedule:
+    - cron: "23,53 6-19 * * *"   # every 30 min, 06:00-19:53 UTC
+  workflow_dispatch: {}
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel /api/comment
+        env:
+          VERCEL_CRON_URL: ${{ secrets.VERCEL_CRON_URL }}   # https://<app>.vercel.app/api/cron
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          COMMENT_URL="${VERCEL_CRON_URL%/api/cron}/api/comment"
+          echo "POST $COMMENT_URL"
+          curl -fsS -X POST "$COMMENT_URL" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -w "\nHTTP %{http_code}\n"

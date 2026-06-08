@@ -128,6 +128,8 @@ class Brand:
     seed_token_attr: str     # settings attr holding the first-run Threads token
     chain_probability: float # share of runs that publish a multi-post chain
     min_gap_minutes: int     # self-throttle: min minutes between published posts
+    comments_enabled: bool   # whether this brand replies under other people's posts
+    comment_min_gap_minutes: int  # self-throttle for comments
 
 
 TALA = Brand(
@@ -142,6 +144,8 @@ TALA = Brand(
     seed_token_attr="THREADS_ACCESS_TOKEN",
     chain_probability=settings.CHAIN_PROBABILITY,
     min_gap_minutes=settings.TALA_MIN_GAP_MINUTES,
+    comments_enabled=True,
+    comment_min_gap_minutes=settings.TALA_COMMENT_MIN_GAP_MINUTES,
 )
 
 BLACKSEA = Brand(
@@ -157,6 +161,8 @@ BLACKSEA = Brand(
     # Mostly single friendly posts; occasionally a short tips list.
     chain_probability=settings.BLACKSEA_CHAIN_PROBABILITY,
     min_gap_minutes=settings.BLACKSEA_MIN_GAP_MINUTES,
+    comments_enabled=False,  # blacksea only posts for now
+    comment_min_gap_minutes=settings.BLACKSEA_MIN_GAP_MINUTES,
 )
 
 

@@ -1,16 +1,14 @@
 name: blacksea post cron
 
-# Triggers the Vercel blacksea endpoint 4x/day (Vercel Hobby crons only fire once
-# a day, so the real cadence lives here). Times are UTC; chosen to land around
-# Kyiv daytime (≈09:00, 12:00, 16:00, 19:00 EEST). GitHub may delay scheduled
-# runs under load, and disables schedules after 60 days of repo inactivity.
+# Fires every 30 min during the daytime window (06-19 UTC ≈ 09:00-22:00 Kyiv).
+# The endpoint SELF-THROTTLES via BLACKSEA_MIN_GAP_MINUTES (~3.5h), so this
+# yields ~3-4 evenly spread posts/day and a dropped/late GitHub run is simply
+# caught by the next 30-min slot. (Vercel Hobby crons only fire daily.)
+# GitHub disables schedules after 60 days of repo inactivity.
 on:
   schedule:
-    - cron: "0 6 * * *"
-    - cron: "0 9 * * *"
-    - cron: "0 13 * * *"
-    - cron: "0 16 * * *"
-  workflow_dispatch: {}      # manual "Run workflow" button
+    - cron: "8,38 6-19 * * *"   # every 30 min, 06:00-19:38 UTC
+  workflow_dispatch: {}          # manual "Run workflow" button
 
 jobs:
   post:

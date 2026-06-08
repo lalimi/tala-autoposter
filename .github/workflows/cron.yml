@@ -1,12 +1,14 @@
 name: tala post cron
 
-# Triggers the Vercel post endpoint every 2 hours. (Vercel Hobby crons only fire
-# once a day, so the real cadence lives here.) GitHub may delay scheduled runs
-# under load, and disables schedules after 60 days of repo inactivity.
+# Fires every 30 min (off the congested top-of-hour, which GitHub delays/drops).
+# The endpoint SELF-THROTTLES: it only posts if the last post is older than
+# TALA_MIN_GAP_MINUTES (~2h), so a dropped/late run is caught by the next one
+# instead of leaving a gap. (Vercel Hobby crons only fire daily, hence GitHub.)
+# GitHub disables schedules after 60 days of repo inactivity.
 on:
   schedule:
-    - cron: "0 */2 * * *"   # every 2 hours, UTC
-  workflow_dispatch: {}      # manual "Run workflow" button
+    - cron: "8,38 * * * *"   # :08 and :38 every hour, UTC
+  workflow_dispatch: {}       # manual "Run workflow" button
 
 jobs:
   post:

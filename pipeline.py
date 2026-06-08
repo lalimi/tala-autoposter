@@ -18,11 +18,26 @@ from config.brands import TALA, Brand
 logger = logging.getLogger("tala")
 
 
-def run_pipeline(brand: Brand = TALA, publish: bool = True) -> str:
+def run_pipeline(
+    brand: Brand = TALA, publish: bool = True, respect_min_gap: bool = False
+) -> str | None:
     # Lazy imports so callers that only need part of the stack stay light.
+    import store
+
     from agents.memory_agent import MemoryAgent
     from agents.parser_agent import ParserAgent
     from agents.writer_agent import WriterAgent
+
+    # Self-throttle (cron path only): skip if the last post is too recent, so a
+    # frequent cron + dropped/late GitHub runs still average the target cadence.
+    if respect_min_gap and brand.min_gap_minutes:
+        mins = store.minutes_since_last_post(brand.table_prefix)
+        if mins is not None and mins < brand.min_gap_minutes:
+            logger.info(
+                "[%s] skip: last post %.0f min ago (< %d min gap)",
+                brand.key, mins, brand.min_gap_minutes,
+            )
+            return None
 
     memory = MemoryAgent(brand)
     topic = memory.get_least_used_topic()

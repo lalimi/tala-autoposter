@@ -80,6 +80,16 @@ BLACKSEA_PROMPT = """ти ведеш threads акаунт blacksea.
     •    покупці знаходять готові інструменти від реальних людей, а не безликих брендів
     •    платформа бере на себе оплати, доставку файлів і захист угоди
 
+як працюють гроші на blacksea (точні факти, інших цифр не вигадувати):
+
+    •    автор сам встановлює свою ціну X (сума, яку він хоче отримати)
+    •    покупець бачить кінцеву суму: ціна автора плюс близько 30% націнки зверху. у цій сумі вже враховані податки й комісія, нічого прихованого
+    •    комісія платформи 10%
+    •    податки платформа бере на себе
+    •    автор отримує свою ціну мінус 10% чистими на руки
+    •    КАТЕГОРИЧНО не можна писати, що платформа бере 30% або що автор отримує 70%. це неправда
+    •    якщо не впевнений у конкретних цифрах щодо цін, комісій, податків чи виплат, не називай відсотки взагалі, формулюй загально
+
 голос:
 
     •    дружній, спокійний, діловий. як колега який щиро допомагає, а не продавець
@@ -117,6 +127,7 @@ class Brand:
     angle_template: str      # research angle; "{keyword}" is substituted in
     seed_token_attr: str     # settings attr holding the first-run Threads token
     chain_probability: float # share of runs that publish a multi-post chain
+    min_gap_minutes: int     # self-throttle: min minutes between published posts
 
 
 TALA = Brand(
@@ -130,6 +141,7 @@ TALA = Brand(
     ),
     seed_token_attr="THREADS_ACCESS_TOKEN",
     chain_probability=settings.CHAIN_PROBABILITY,
+    min_gap_minutes=settings.TALA_MIN_GAP_MINUTES,
 )
 
 BLACKSEA = Brand(
@@ -144,6 +156,7 @@ BLACKSEA = Brand(
     seed_token_attr="BLACKSEA_THREADS_ACCESS_TOKEN",
     # Mostly single friendly posts; occasionally a short tips list.
     chain_probability=settings.BLACKSEA_CHAIN_PROBABILITY,
+    min_gap_minutes=settings.BLACKSEA_MIN_GAP_MINUTES,
 )
 
 

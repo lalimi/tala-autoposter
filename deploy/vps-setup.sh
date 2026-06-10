@@ -19,9 +19,22 @@ echo "==> app dir: $APP"
 if [ "$(id -u)" -ne 0 ]; then
   echo "run as root: sudo bash deploy/vps-setup.sh" >&2; exit 1
 fi
+
+# Create .env interactively if missing — no editor needed.
 if [ ! -f "$APP/.env" ]; then
-  echo "missing $APP/.env — copy .env.example to .env and fill the keys first." >&2
-  exit 1
+  echo "==> .env not found — let's create it (paste each value, Enter to confirm)"
+  read -rp "ANTHROPIC_API_KEY: " _ak
+  read -rp "SUPABASE_URL [https://mukjpousdanernohanrt.supabase.co]: " _su
+  _su="${_su:-https://mukjpousdanernohanrt.supabase.co}"
+  read -rp "SUPABASE_SERVICE_KEY: " _sk
+  umask 077
+  cat > "$APP/.env" <<EOF
+ANTHROPIC_API_KEY=$_ak
+SUPABASE_URL=$_su
+SUPABASE_SERVICE_KEY=$_sk
+PLAYWRIGHT_NO_SANDBOX=1
+EOF
+  echo "==> wrote $APP/.env (Threads tokens already live in Supabase)"
 fi
 
 echo "==> system packages"
@@ -35,7 +48,9 @@ echo "==> python venv + deps"
 .venv/bin/pip install -q -r requirements.txt -r requirements-scraper.txt
 
 echo "==> headless chromium for the scraper (installs OS libs too)"
-.venv/bin/python -m playwright install --with-deps chromium
+# Non-fatal: posting works without the scraper; only commenting-discovery needs it.
+.venv/bin/python -m playwright install --with-deps chromium \
+  || echo "WARN: chromium install failed — posting still works; commenting needs it (retry later)."
 
 # Running as root -> Playwright needs --no-sandbox; scraper honours this env.
 grep -q '^PLAYWRIGHT_NO_SANDBOX=' .env || echo 'PLAYWRIGHT_NO_SANDBOX=1' >> .env

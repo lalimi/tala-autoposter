@@ -172,11 +172,15 @@ A VPS gives reliable timers (no GitHub-cron drops) and runs the scraper natively
 workflows — `main.py` does everything via `--tick`.
 
 ```bash
-# on the server, as root:
-git clone <repo> /opt/tala-autoposter && cd /opt/tala-autoposter
-git checkout claude/blacksea-posting-agent-kxmbp     # until merged to main
-cp .env.example .env && nano .env                    # fill the keys
-sudo bash deploy/vps-setup.sh                         # venv, deps, chromium, timers
+# on the server (SSH in from your Mac for easy paste). Private repo -> put a
+# GitHub token in the clone URL. Two commands, then answer 3 prompts:
+sudo git clone -b claude/blacksea-posting-agent-kxmbp \
+  https://<GITHUB_TOKEN>@github.com/lalimi/tala-autoposter.git /opt/tala-autoposter
+
+cd /opt/tala-autoposter && sudo bash deploy/vps-setup.sh
+# the installer asks for ANTHROPIC_API_KEY / SUPABASE_URL / SUPABASE_SERVICE_KEY
+# (no editor), then sets up venv + chromium + timers. Threads tokens already
+# live in Supabase, so they aren't needed here.
 ```
 
 `deploy/vps-setup.sh` installs a venv + headless Chromium and enables four

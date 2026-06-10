@@ -67,6 +67,10 @@ def main() -> None:
                         help="run pipeline once and PUBLISH for real to Threads")
     parser.add_argument("--comment", action="store_true",
                         help="reply once under a scraped candidate post and PUBLISH")
+    parser.add_argument("--tick", action="store_true",
+                        help="one SELF-THROTTLED tick for systemd/cron timers: "
+                             "publish only if the brand's min-gap has elapsed "
+                             "(combine with --comment for a comment tick)")
     parser.add_argument("--stats", action="store_true",
                         help="print the last 10 posts from this brand's history")
     args = parser.parse_args()
@@ -75,6 +79,12 @@ def main() -> None:
 
     if args.stats:
         print_stats(brand)
+        return
+
+    if args.tick:
+        fn = run_comment if args.comment else run_pipeline
+        text = fn(brand, publish=True, respect_min_gap=True)
+        print(text or "(skipped: min-gap not elapsed / no candidate)")
         return
 
     if args.comment:

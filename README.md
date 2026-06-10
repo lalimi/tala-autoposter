@@ -165,6 +165,41 @@ def fetch_posts(keywords: list[str]) -> list[dict]:
 
 Nothing else needs to change.
 
+## Run on a VPS with systemd (Hetzner etc.) — recommended
+
+A VPS gives reliable timers (no GitHub-cron drops) and runs the scraper natively
+(so commenting is self-contained). It replaces both Vercel and the GitHub
+workflows — `main.py` does everything via `--tick`.
+
+```bash
+# on the server, as root:
+git clone <repo> /opt/tala-autoposter && cd /opt/tala-autoposter
+git checkout claude/blacksea-posting-agent-kxmbp     # until merged to main
+cp .env.example .env && nano .env                    # fill the keys
+sudo bash deploy/vps-setup.sh                         # venv, deps, chromium, timers
+```
+
+`deploy/vps-setup.sh` installs a venv + headless Chromium and enables four
+systemd timers (templated `tala@.service` + `deploy/systemd/*.timer`):
+
+| Timer | Job | Schedule (self-throttled) |
+|---|---|---|
+| `tala@post-tala` | tala posts | hourly → ~every 2h |
+| `tala@post-blacksea` | blacksea posts | hourly 06-19 → ~3-4/day |
+| `tala@comment-tala` | tala comments | every 30 min 06-19 |
+| `tala@refresh` | scrape signals + comment targets | every 3h |
+
+```bash
+systemctl list-timers 'tala@*'        # see next fire times
+journalctl -u 'tala@*' -f             # live logs
+.venv/bin/python main.py --brand tala --publish   # post on demand
+```
+
+Notes: keep the VPS clock in **UTC** (the daytime windows assume it). Posting
+needs no scraper; **commenting** needs a logged-in `parser/scout_session.json`
+(run `python -m parser.scraper --login` on your Mac, then `scp` the file over).
+Once the VPS is confirmed working, disable the Vercel project + GitHub workflows.
+
 ## Run on a VPS with systemd (auto-restart on reboot)
 
 `/etc/systemd/system/tala-autoposter.service`:

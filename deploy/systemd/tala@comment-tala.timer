@@ -1,0 +1,12 @@
+[Unit]
+Description=tala comment tick (every 30 min in the daytime window)
+
+[Timer]
+# Every 30 min 06:23-19:53 (server time — keep the VPS in UTC). Self-throttle on
+# COMMENT_MIN_GAP_MINUTES (~90m) + empty-queue skip keep it non-spammy.
+OnCalendar=*-*-* 06..19:23,53:00
+Persistent=true
+Unit=tala@comment-tala.service
+
+[Install]
+WantedBy=timers.target

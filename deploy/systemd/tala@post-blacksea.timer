@@ -1,0 +1,12 @@
+[Unit]
+Description=blacksea post tick (hourly in the daytime window; ~3-4 posts/day)
+
+[Timer]
+# Hourly 06:13-19:13 (server time — keep the VPS in UTC). Self-throttle on
+# BLACKSEA_MIN_GAP_MINUTES (~3.5h) thins this to ~3-4 evenly spread posts.
+OnCalendar=*-*-* 06..19:13:00
+Persistent=true
+Unit=tala@post-blacksea.service
+
+[Install]
+WantedBy=timers.target

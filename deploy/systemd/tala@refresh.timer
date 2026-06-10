@@ -1,0 +1,12 @@
+[Unit]
+Description=scrape Threads signals + queue comment targets (every 3h)
+
+[Timer]
+# Feeds both the writer (peer/keyword signals) and the comment queue.
+# Needs a valid scraper session at parser/scout_session.json (see scraper docs).
+OnCalendar=*-*-* 00/3:17:00
+Persistent=true
+Unit=tala@refresh.service
+
+[Install]
+WantedBy=timers.target

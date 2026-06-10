@@ -1,0 +1,13 @@
+[Unit]
+Description=tala-autoposter job (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# __APP__ is replaced with the real repo path by deploy/vps-setup.sh.
+WorkingDirectory=__APP__
+ExecStart=__APP__/deploy/systemd/run-job.sh %i
+# Env (ANTHROPIC_API_KEY, SUPABASE_*, etc.) is read from __APP__/.env by
+# python-dotenv inside config/settings.py — no EnvironmentFile needed.
+TimeoutStartSec=300

@@ -16,9 +16,11 @@ case "${1:-}" in
   metrics-tala)     exec "$PY" main.py --brand tala     --metrics ;;
   metrics-blacksea) exec "$PY" main.py --brand blacksea --metrics ;;
   update)
-    # Pull code, then re-sync systemd units so unit/timer changes (and brand-new
-    # timers) self-apply too — no manual reinstall ever needed.
-    git -C "$APP" pull --ff-only --quiet || true
+    # Force the repo to match remote (immune to local mode/file changes; .env is
+    # git-ignored so it's untouched), then re-sync systemd units so unit/timer
+    # changes (and brand-new timers) self-apply too — no manual reinstall needed.
+    git -C "$APP" fetch --quiet origin || true
+    git -C "$APP" reset --hard --quiet '@{u}' || true
     if [ -d /etc/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
       sed "s#__APP__#$APP#g" "$APP/deploy/systemd/tala@.service" \
         > /etc/systemd/system/tala@.service 2>/dev/null || true

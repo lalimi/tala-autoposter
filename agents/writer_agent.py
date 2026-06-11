@@ -73,7 +73,9 @@ class WriterAgent:
         # Last resort: hard-trim on a paragraph/line boundary so we never 400.
         if len(text) > MAX_CHARS:
             text = self._trim(text)
-        return text
+        # A single post must never carry a chain-style "---" divider (the model
+        # sometimes adds one); turn it into a plain paragraph break.
+        return self._strip_dividers(text)
 
     def run_chain(self, brief: dict, memory, max_parts: int | None = None) -> list[str]:
         """Write a checklist / mini-guide as a short post chain. Returns the parts
@@ -159,6 +161,14 @@ class WriterAgent:
         # collapse runs of spaces without touching newlines
         while "  " in text:
             text = text.replace("  ", " ")
+        return text.strip()
+
+    @staticmethod
+    def _strip_dividers(text: str) -> str:
+        """Drop standalone '---' separator lines from a SINGLE post (they belong
+        only between chain parts), collapsing them into a paragraph break."""
+        text = re.sub(r"(?m)^[ \t]*-{2,}[ \t]*$", "", text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
         return text.strip()
 
     @staticmethod

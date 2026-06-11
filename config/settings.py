@@ -32,7 +32,7 @@ WRITER_MAX_TOKENS = 400
 
 # Share of runs that publish a multi-post CHAIN (checklist / guide) rather than
 # a single post. Tala wants mostly chains, occasional singles. Tunable via env.
-CHAIN_PROBABILITY = float(_env("CHAIN_PROBABILITY", "0.8") or "0.8")
+CHAIN_PROBABILITY = float(_env("CHAIN_PROBABILITY", "0.9") or "0.9")
 
 # Same knob for the @blacksea brand account, but flipped: mostly single friendly
 # posts, only occasionally a short tips chain.

@@ -151,14 +151,20 @@ def run_comment(
     if not publish:
         return text
 
-    from agents.publisher_agent import PublisherAgent
-
+    # Comment via the browser: the Graph API can't reply to arbitrary feed posts
+    # (we only have a scraped web id, not a Graph media id), so drive the web UI.
     try:
-        result = PublisherAgent(brand).reply_to(text, target["thread_id"])
-        store.mark_commented(target["id"], result.get("post_id"), text,
-                             brand.table_prefix)
-        logger.info("[%s] commented | @%s | id=%s",
-                    brand.key, target.get("username"), result.get("post_id"))
+        from parser.commenter import post_reply
+
+        ok = post_reply(target.get("url", ""), text)
+        if ok:
+            store.mark_commented(target["id"], None, text, brand.table_prefix)
+            logger.info("[%s] commented | @%s | %s",
+                        brand.key, target.get("username"), target.get("url"))
+        else:
+            store.mark_comment_failed(target["id"], brand.table_prefix)
+            logger.error("[%s] comment not posted | @%s | %s (see screenshot)",
+                         brand.key, target.get("username"), target.get("url"))
     except Exception as exc:  # never crash the handler
         store.mark_comment_failed(target["id"], brand.table_prefix)
         logger.error("[%s] comment failed | @%s | %s",

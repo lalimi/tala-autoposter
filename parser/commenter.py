@@ -9,7 +9,7 @@ than the API, so the caller keeps volume low (comment self-throttle). On every
 attempt we save a screenshot to SHOT_PATH so selectors can be tuned from a real
 page when something doesn't match.
 
-    post_reply(url, text) -> bool   # True only if we believe the reply posted
+    post_reply(url, text) -> bool   # True only if the reply is verified on-page
 """
 from __future__ import annotations
 
@@ -22,20 +22,41 @@ from parser.scraper import UA, _run, _session_file
 SHOT_PATH = "/tmp/threads_reply.png"
 
 # Threads localises labels; try EN/UA/RU.
-REPLY_LABELS = ["Reply", "Відповісти", "Ответить"]
-POST_LABELS = ["Post", "Опублікувати", "Публікувати", "Надіслати", "Ответить", "Post reply"]
+REPLY_PLACEHOLDER = re.compile(r"Відповісти|Reply|Ответить", re.I)
+POST_LABELS = ["Опублікувати", "Публікувати", "Post", "Надіслати", "Reply"]
 
 
 async def _click_role(page, labels, timeout=4000) -> bool:
     for name in labels:
         try:
-            await page.get_by_role("button", name=re.compile(name, re.I)).first.click(
+            await page.get_by_role("button", name=re.compile(f"^{name}$", re.I)).first.click(
                 timeout=timeout
             )
             return True
         except Exception:
             continue
     return False
+
+
+async def _open_composer(page) -> bool:
+    """Focus the inline reply field. Try placeholder, then the visible
+    'Відповісти користувачу…' text, then the expand affordance."""
+    try:
+        field = page.get_by_placeholder(REPLY_PLACEHOLDER).first
+        await field.click(timeout=6000)
+        return True
+    except Exception:
+        pass
+    try:
+        await page.get_by_text(REPLY_PLACEHOLDER).first.click(timeout=4000)
+        return True
+    except Exception:
+        pass
+    try:  # last resort: the first textbox that isn't search
+        await page.get_by_role("textbox").last.click(timeout=4000)
+        return True
+    except Exception:
+        return False
 
 
 async def _post_reply_async(url: str, text: str) -> bool:
@@ -58,25 +79,29 @@ async def _post_reply_async(url: str, text: str) -> bool:
             await page.goto(url, timeout=30000, wait_until="domcontentloaded")
             await page.wait_for_timeout(4500)
 
-            # 1. open the reply composer (a button) — if there's already an inline
-            #    textbox this may be a no-op, which is fine.
-            await _click_role(page, REPLY_LABELS)
-            await page.wait_for_timeout(1500)
-
-            # 2. type into the first editable textbox.
-            box = page.get_by_role("textbox").first
-            await box.wait_for(timeout=8000)
-            await box.click()
-            await box.type(text, delay=25)  # human-ish typing
+            if not await _open_composer(page):
+                print("⚠️  could not find the reply field")
+                return False
             await page.wait_for_timeout(1000)
 
-            # 3. submit — try a Post button, then keyboard shortcuts.
+            # Type into whatever is now focused (the composer).
+            await page.keyboard.type(text, delay=25)
+            await page.wait_for_timeout(1000)
+
             if not await _click_role(page, POST_LABELS):
                 await page.keyboard.press("Meta+Enter")
-                await page.wait_for_timeout(500)
+                await page.wait_for_timeout(400)
                 await page.keyboard.press("Control+Enter")
-            await page.wait_for_timeout(3500)
-            return True
+            await page.wait_for_timeout(4000)
+
+            # Verify: our text now renders on the page as a posted reply.
+            try:
+                posted = await page.get_by_text(text[:30], exact=False).count() > 0
+            except Exception:
+                posted = False
+            if not posted:
+                print("⚠️  reply not found on page after submit")
+            return posted
         except Exception as exc:  # noqa: BLE001
             print(f"⚠️  browser reply failed: {exc}")
             return False

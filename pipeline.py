@@ -129,9 +129,12 @@ def run_comment(
 
     if respect_min_gap and brand.comment_min_gap_minutes:
         mins = store.minutes_since_last_comment(brand.table_prefix)
-        if mins is not None and mins < brand.comment_min_gap_minutes:
-            logger.info("[%s] comment skip: last %.0f min ago (< %d)",
-                        brand.key, mins, brand.comment_min_gap_minutes)
+        # Randomise the gap (base..2x base) so spacing looks human, not robotic.
+        base = brand.comment_min_gap_minutes
+        gap = base + random.uniform(0, base)
+        if mins is not None and mins < gap:
+            logger.info("[%s] comment skip: last %.0f min ago (< %.0f, jittered)",
+                        brand.key, mins, gap)
             return None
 
     target = store.next_comment_target(brand.table_prefix)

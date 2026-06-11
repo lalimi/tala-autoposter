@@ -96,14 +96,20 @@ class PublisherAgent:
             time.sleep(interval)
         # Timed out waiting — let the publish call surface any real error.
 
+    @staticmethod
+    def _check(r, endpoint: str) -> dict:
+        # Surface Threads' actual error body (not just the status) so failures
+        # are diagnosable. The response body is Meta's error JSON, no secrets.
+        if not r.ok:
+            raise RuntimeError(f"{r.status_code} on {endpoint}: {r.text[:400]}")
+        return r.json()
+
     def _get(self, endpoint: str, params: dict) -> dict:
         params["access_token"] = self.token
         r = requests.get(f"{BASE_URL}{endpoint}", params=params, timeout=20)
-        r.raise_for_status()
-        return r.json()
+        return self._check(r, endpoint)
 
     def _post(self, endpoint: str, params: dict) -> dict:
         params["access_token"] = self.token
         r = requests.post(f"{BASE_URL}{endpoint}", params=params, timeout=20)
-        r.raise_for_status()
-        return r.json()
+        return self._check(r, endpoint)

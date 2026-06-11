@@ -1,0 +1,12 @@
+[Unit]
+Description=git pull the repo so the VPS auto-updates (no manual pull needed)
+
+[Timer]
+# Pull every 10 min. The job timers run main.py fresh each tick, so they pick
+# up the new code on their next run. .env is git-ignored, so pulls never clash.
+OnCalendar=*:0/10
+Persistent=true
+Unit=tala@update.service
+
+[Install]
+WantedBy=timers.target

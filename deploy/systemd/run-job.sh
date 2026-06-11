@@ -13,6 +13,7 @@ case "${1:-}" in
   post-blacksea)  exec "$PY" main.py --brand blacksea --tick ;;
   comment-tala)   exec "$PY" main.py --brand tala     --comment --tick ;;
   refresh)        exec "$PY" -m scripts.refresh_signals ;;
-  *) echo "unknown job: '${1:-}' (use post-tala|post-blacksea|comment-tala|refresh)" >&2
+  update)         exec git -C "$APP" pull --ff-only --quiet ;;
+  *) echo "unknown job: '${1:-}' (use post-tala|post-blacksea|comment-tala|refresh|update)" >&2
      exit 2 ;;
 esac

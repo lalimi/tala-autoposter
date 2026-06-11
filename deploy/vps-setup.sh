@@ -62,7 +62,7 @@ chmod +x deploy/systemd/run-job.sh
 systemctl daemon-reload
 
 echo "==> enabling timers"
-for t in post-tala post-blacksea comment-tala refresh; do
+for t in post-tala post-blacksea comment-tala refresh update; do
   systemctl enable --now "tala@$t.timer"
 done
 

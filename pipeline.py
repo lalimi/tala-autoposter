@@ -87,6 +87,32 @@ def run_pipeline(
     return post_text
 
 
+def run_metrics(brand: Brand = TALA, **_) -> int:
+    """Fetch + store insights for posts published >=24h ago that have none yet.
+    Returns how many were updated. Never raises on a single post's failure."""
+    import store
+
+    from agents.metrics_agent import MetricsAgent
+
+    posts = store.posts_needing_metrics(brand.table_prefix)
+    if not posts:
+        logger.info("[%s] no posts need metrics", brand.key)
+        return 0
+
+    agent = MetricsAgent(brand)
+    updated = 0
+    for p in posts:
+        try:
+            m = agent.fetch(p["threads_post_id"])
+            store.save_metrics(p["id"], m, brand.table_prefix)
+            updated += 1
+            logger.info("[%s] metrics | post %s | %s", brand.key, p["id"], m)
+        except Exception as exc:  # one bad id shouldn't stop the batch
+            logger.warning("[%s] metrics failed | post %s | %s",
+                           brand.key, p["id"], exc)
+    return updated
+
+
 def run_comment(
     brand: Brand = TALA, publish: bool = True, respect_min_gap: bool = False
 ) -> str | None:

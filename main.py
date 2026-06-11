@@ -11,7 +11,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 from config import settings
 from config.brands import get_brand
-from pipeline import run_comment, run_pipeline
+from pipeline import run_comment, run_metrics, run_pipeline
 
 
 def _setup_logging() -> logging.Logger:
@@ -67,6 +67,8 @@ def main() -> None:
                         help="run pipeline once and PUBLISH for real to Threads")
     parser.add_argument("--comment", action="store_true",
                         help="reply once under a scraped candidate post and PUBLISH")
+    parser.add_argument("--metrics", action="store_true",
+                        help="fetch + store Threads insights for posts >=24h old")
     parser.add_argument("--tick", action="store_true",
                         help="one SELF-THROTTLED tick for systemd/cron timers: "
                              "publish only if the brand's min-gap has elapsed "
@@ -79,6 +81,11 @@ def main() -> None:
 
     if args.stats:
         print_stats(brand)
+        return
+
+    if args.metrics:
+        n = run_metrics(brand)
+        print(f"metrics updated for {n} post(s)")
         return
 
     if args.tick:

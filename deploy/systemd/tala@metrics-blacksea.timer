@@ -1,0 +1,10 @@
+[Unit]
+Description=fetch Threads metrics for blacksea posts (>=24h old)
+
+[Timer]
+OnCalendar=*-*-* *:48:00
+Persistent=true
+Unit=tala@metrics-blacksea.service
+
+[Install]
+WantedBy=timers.target

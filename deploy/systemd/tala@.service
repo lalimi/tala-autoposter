@@ -10,4 +10,4 @@ WorkingDirectory=__APP__
 ExecStart=__APP__/deploy/systemd/run-job.sh %i
 # Env (ANTHROPIC_API_KEY, SUPABASE_*, etc.) is read from __APP__/.env by
 # python-dotenv inside config/settings.py — no EnvironmentFile needed.
-TimeoutStartSec=300
+TimeoutStartSec=900

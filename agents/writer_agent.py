@@ -26,6 +26,7 @@ class WriterAgent:
 
         recent_topics = memory.get_recent_topics()
         best_post = memory.get_best_performing_post()
+        recent_texts = memory.recent_post_texts()
 
         # Only mention peer accounts when we actually have scraped peer signals
         # (Tala does; the @blacksea brand account has none).
@@ -44,7 +45,8 @@ class WriterAgent:
             f"{peer_line}"
             f"кут: {brief['angle']}\n\n"
             f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
-            f"останній пост який добре зайшов: {best_post}\n\n"
+            f"останні пости (НЕ повторюй ці історії, деталі й формулювання): {recent_texts}\n"
+            f"пост який зайшов найкраще за переглядами (орієнтир на стиль, не копіювати): {best_post}\n\n"
             f"максимум {MAX_CHARS} символів, ціль {TARGET_CHARS}.\n"
             "поверни лише текст поста. без пояснень. без лапок навколо тексту."
         )
@@ -86,6 +88,7 @@ class WriterAgent:
         max_parts = max_parts or settings.CHAIN_MAX_PARTS
         steps = max(1, max_parts - 1)  # parts after the hook
         recent_topics = memory.get_recent_topics()
+        recent_texts = memory.recent_post_texts()
         peer_line = ""
         if brief.get("peer_signals"):
             peer_line = (
@@ -99,7 +102,8 @@ class WriterAgent:
             f"сигнали: {brief['trend_signals']}\n"
             f"{peer_line}"
             f"кут: {brief['angle']}\n\n"
-            f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n\n"
+            f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
+            f"останні пости (НЕ повторюй ці історії, деталі й формулювання): {recent_texts}\n\n"
             "формат ланцюжка:\n"
             f"- РІВНО {max_parts} постів (1 хук + {steps} пункти), не більше.\n"
             "- 1-й пост: хук-обіцянка — що людина отримає, чому варто зберегти. коротко.\n"
@@ -128,9 +132,13 @@ class WriterAgent:
             "ось чужий пост у threads, під яким ти хочеш залишити природний коментар:\n\n"
             f"автор: @{target.get('username', '')}\n"
             f"пост: «{(target.get('text') or '').strip()[:600]}»\n\n"
-            "напиши коротку живу відповідь у твоєму голосі:\n"
+            "напиши коротку живу відповідь у твоєму голосі, як звичайна людина в коментарях:\n"
             "- 1-2 короткі речення, максимум ~250 символів\n"
-            "- реагуй саме на зміст цього поста, по суті, як жива людина в коментарях\n"
+            "- реагуй саме на зміст цього поста. це може бути будь-що доречне: "
+            "підтримати, погодитись, легко пожартувати, поділитись схожим моментом\n"
+            "- тема НЕ обовʼязково про продуктивність, notion чи продукти. "
+            "коментуй на загальні, побутові теми так само природно\n"
+            "- гумор вітається, якщо доречний; але без сарказму згори, по-доброму\n"
             "- нічого не рекламуй, без посилань, без згадки своїх продуктів, без CTA\n"
             "- не починай зі звертання на кшталт 'привіт', одразу думка\n"
             "- поверни лише текст коментаря, без лапок і пояснень"

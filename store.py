@@ -132,6 +132,53 @@ def last_published_text(prefix: str = "tala") -> str:
     return rows[0]["text"] if rows else ""
 
 
+def recent_post_texts(prefix: str = "tala", limit: int = 12, hours: int = 336) -> list[str]:
+    """Recent published post texts — fed to the writer so it doesn't repeat
+    itself (same stories, angles, phrasing)."""
+    rows = _req("GET", f"{prefix}_posts", params={
+        "select": "text", "status": "eq.published",
+        "published_at": f"gte.{_cutoff_iso(hours)}",
+        "order": "published_at.desc", "limit": limit,
+    }) or []
+    return [r["text"] for r in rows if r.get("text")]
+
+
+# ── metrics (learning) ──────────────────────────────────────────────────────
+
+def posts_needing_metrics(prefix: str = "tala", min_age_hours: int = 24,
+                          limit: int = 12) -> list[dict]:
+    """Published posts at least `min_age_hours` old that have no metrics yet."""
+    return _req("GET", f"{prefix}_posts", params={
+        "select": "id,threads_post_id",
+        "status": "eq.published", "threads_post_id": "not.is.null",
+        "metrics_at": "is.null",
+        "published_at": f"lte.{_cutoff_iso(min_age_hours)}",
+        "order": "published_at.desc", "limit": limit,
+    }) or []
+
+
+def save_metrics(post_id: int, m: dict, prefix: str = "tala") -> None:
+    _req("PATCH", f"{prefix}_posts", params={"id": f"eq.{post_id}"},
+         json={"views": m.get("views"), "likes": m.get("likes"),
+               "replies": m.get("replies"), "reposts": m.get("reposts"),
+               "quotes": m.get("quotes"), "metrics_at": _now_iso()},
+         prefer="return=minimal")
+
+
+def best_post_by_metric(prefix: str = "tala", days: int = 30) -> str:
+    """Text of the best-performing recent post (by views), for the writer to
+    learn from. Falls back to the most recent post if no metrics yet."""
+    rows = _req("GET", f"{prefix}_posts", params={
+        "select": "text,views,likes", "status": "eq.published",
+        "metrics_at": "not.is.null",
+        "published_at": f"gte.{_cutoff_iso(days * 24)}",
+        "order": "views.desc.nullslast", "limit": 1,
+    }) or []
+    if rows and rows[0].get("text"):
+        return rows[0]["text"]
+    return last_published_text(prefix)
+
+
 def least_used_topic(topics: list[str], prefix: str = "tala") -> str:
     """Least-recently-used topic from the config list (never-posted first)."""
     rows = _req("GET", f"{prefix}_posts", params={

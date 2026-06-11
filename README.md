@@ -153,6 +153,17 @@ scraper (keyword search) → tala_comment_targets → CommentAgent → reply_to_
 > Whether the Threads API accepts a reply to a *scraped* post id depends on the
 > token's permissions and the target's reply settings; verify with one live tick.
 
+## Metrics & light learning
+
+Each post's Threads insights (views/likes/replies/reposts/quotes) are pulled
+~24h after publishing (`run_metrics` / `--metrics`, hourly timer) and stored on
+the post row. The writer then learns lightly: it's fed the **best-performing**
+recent post (by views) as a style reference, plus the **last ~12 posts** with an
+instruction not to repeat stories, details, or phrasing (dedup). Keyword pools
+are broadened — `config/topics.json` for what Tala writes about, and
+`config/comment_keywords.json` (general/everyday/humour) for what she comments
+under, so comments aren't only about digital products.
+
 ## Plugging in the real parser
 
 `parser/scraper.py` is a **placeholder** returning mock signals so the pipeline runs out

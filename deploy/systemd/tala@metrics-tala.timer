@@ -1,0 +1,11 @@
+[Unit]
+Description=fetch Threads metrics for tala posts (>=24h old)
+
+[Timer]
+# Hourly at :43. Each post gets its insights once, ~24h after publishing.
+OnCalendar=*-*-* *:43:00
+Persistent=true
+Unit=tala@metrics-tala.service
+
+[Install]
+WantedBy=timers.target

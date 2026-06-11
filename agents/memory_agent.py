@@ -29,8 +29,11 @@ class MemoryAgent:
         return store.recent_topics(hours, prefix=self.prefix)
 
     def get_best_performing_post(self) -> str:
-        # No analytics yet -> most recently published post as reference.
-        return store.last_published_text(prefix=self.prefix)
+        # Best by views (learning); falls back to the latest post if no metrics.
+        return store.best_post_by_metric(prefix=self.prefix)
+
+    def recent_post_texts(self, limit: int = 12) -> list[str]:
+        return store.recent_post_texts(prefix=self.prefix, limit=limit)
 
     def save_post(self, topic, fmt, text, postiz_id=None, status="draft") -> int:
         return store.save_post(topic, fmt, text, status, prefix=self.prefix)

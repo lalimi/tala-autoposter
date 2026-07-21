@@ -163,7 +163,12 @@ class WriterAgent:
             system=self.system_prompt,
             messages=messages,
         )
-        text = response.content[0].text.strip().strip('"').strip()
+        # Models with thinking enabled (e.g. sonnet-5) prepend a ThinkingBlock;
+        # take the text blocks only.
+        text = "".join(
+            b.text for b in response.content if getattr(b, "type", "") == "text"
+        )
+        text = text.strip().strip('"').strip()
         return self._sanitize(text)
 
     @staticmethod

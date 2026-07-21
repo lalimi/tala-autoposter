@@ -21,9 +21,6 @@ class WriterAgent:
         self.max_tokens = max_tokens or settings.WRITER_MAX_TOKENS
 
     def run(self, brief: dict, memory) -> str:
-        # Lazy import so DB-only commands (--stats) don't require the SDK.
-        from anthropic import Anthropic
-
         recent_topics = memory.get_recent_topics()
         best_post = memory.get_best_performing_post()
         recent_texts = memory.recent_post_texts()
@@ -47,11 +44,13 @@ class WriterAgent:
             f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
             f"останні пости (НЕ повторюй ці історії, деталі й формулювання): {recent_texts}\n"
             f"пост який зайшов найкраще за переглядами (орієнтир на стиль, не копіювати): {best_post}\n\n"
+            f"важливо: тему “{brief['keyword']}” дослівно в пості не називати. "
+            "покажи її через конкретну ситуацію, деталь або цифру.\n"
             f"максимум {MAX_CHARS} символів, ціль {TARGET_CHARS}.\n"
             "поверни лише текст поста. без пояснень. без лапок навколо тексту."
         )
 
-        client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        client = self._client()
         text = self._call(client, [{"role": "user", "content": user_message}])
 
         # Safety net: the model occasionally overshoots the 500-char cap.
@@ -83,8 +82,6 @@ class WriterAgent:
         """Write a checklist / mini-guide as a short post chain. Returns the parts
         (each <=500 chars). The pipeline publishes them as a Threads reply-chain.
         Length is capped by settings.CHAIN_MAX_PARTS (3 on Vercel, more on a VPS)."""
-        from anthropic import Anthropic
-
         max_parts = max_parts or settings.CHAIN_MAX_PARTS
         steps = max(1, max_parts - 1)  # parts after the hook
         recent_topics = memory.get_recent_topics()
@@ -106,7 +103,8 @@ class WriterAgent:
             f"останні пости (НЕ повторюй ці історії, деталі й формулювання): {recent_texts}\n\n"
             "формат ланцюжка:\n"
             f"- РІВНО {max_parts} постів (1 хук + {steps} пункти), не більше.\n"
-            "- 1-й пост: хук-обіцянка — що людина отримає, чому варто зберегти. коротко.\n"
+            "- 1-й пост: хук-обіцянка — що людина отримає, чому варто зберегти. коротко. "
+            f"тему “{brief['keyword']}” дослівно не називати, хук через ситуацію чи цифру.\n"
             f"- далі {steps} пост(и): конкретні пункти чек-листа або кроки гайду. "
             "один пункт = один пост, з деталлю чи цифрою. остання частина — завершена думка.\n"
             "- це ГАЙД, тож структуровані короткі пункти й кроки тут доречні "
@@ -116,7 +114,7 @@ class WriterAgent:
             "- розділяй пости рядком лише з трьох дефісів: ---\n"
             "- поверни лише пости й роздільники, без нумерації й пояснень."
         )
-        client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        client = self._client()
         raw = self._call(
             client, [{"role": "user", "content": user_message}], max_tokens=900
         )
@@ -126,8 +124,6 @@ class WriterAgent:
     def run_comment(self, target: dict) -> str:
         """Write a short, natural reply to someone else's post, in the brand
         voice. Reactive and relevant — no pitch, no link, no CTA."""
-        from anthropic import Anthropic
-
         user_message = (
             "ось чужий пост у threads, під яким ти хочеш залишити природний коментар:\n\n"
             f"автор: @{target.get('username', '')}\n"
@@ -143,10 +139,22 @@ class WriterAgent:
             "- не починай зі звертання на кшталт 'привіт', одразу думка\n"
             "- поверни лише текст коментаря, без лапок і пояснень"
         )
-        client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        client = self._client()
         text = self._call(client, [{"role": "user", "content": user_message}],
                           max_tokens=200)
         return self._trim(text)
+
+    @staticmethod
+    def _client():
+        # Lazy import so DB-only commands (--stats) don't require the SDK.
+        # Kimi (Moonshot) exposes an Anthropic-compatible API, so the same SDK
+        # serves both providers; base_url picks the provider.
+        from anthropic import Anthropic
+
+        kwargs = {"api_key": settings.WRITER_API_KEY}
+        if settings.WRITER_BASE_URL:
+            kwargs["base_url"] = settings.WRITER_BASE_URL
+        return Anthropic(**kwargs)
 
     def _call(self, client, messages: list, max_tokens: int | None = None) -> str:
         response = client.messages.create(

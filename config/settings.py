@@ -25,9 +25,18 @@ LOGS_DIR = BASE_DIR / "logs"
 TOPICS_FILE = CONFIG_DIR / "topics.json"
 DB_PATH = DATA_DIR / "memory.db"
 
-# Anthropic (WriterAgent)
+# Writer LLM. Primary: Kimi (Moonshot) via its Anthropic-compatible endpoint,
+# so the anthropic SDK keeps working unchanged. If KIMI_API_KEY is unset we
+# fall back to the direct Anthropic key so old deploys don't break.
+KIMI_API_KEY = _env("KIMI_API_KEY")
 ANTHROPIC_API_KEY = _env("ANTHROPIC_API_KEY")
-WRITER_MODEL = _env("WRITER_MODEL", "claude-sonnet-4-20250514")
+WRITER_API_KEY = KIMI_API_KEY or ANTHROPIC_API_KEY
+WRITER_BASE_URL = _env(
+    "WRITER_BASE_URL", "https://api.moonshot.ai/anthropic" if KIMI_API_KEY else ""
+)
+WRITER_MODEL = _env(
+    "WRITER_MODEL", "kimi-k2-0905-preview" if KIMI_API_KEY else "claude-sonnet-4-20250514"
+)
 WRITER_MAX_TOKENS = 400
 
 # Share of runs that publish a multi-post CHAIN (checklist / guide) rather than

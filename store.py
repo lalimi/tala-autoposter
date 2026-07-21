@@ -13,6 +13,7 @@ No SDK dependency — plain `requests`, so it runs unchanged on Vercel.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -56,7 +57,11 @@ def _cutoff_iso(hours: int) -> str:
 
 
 def _iso_to_epoch(s: str) -> float:
-    return datetime.fromisoformat(s.replace(" ", "T")).timestamp()
+    s = s.replace(" ", "T").replace("Z", "+00:00")
+    # Python 3.10's fromisoformat wants exactly 3 or 6 fractional digits, but
+    # Postgres trims trailing zeros (".51361" killed every job); pad to 6.
+    s = re.sub(r"\.(\d{1,6})", lambda m: "." + m.group(1).ljust(6, "0"), s)
+    return datetime.fromisoformat(s).timestamp()
 
 
 def _epoch_to_iso(e: float) -> str:

@@ -37,7 +37,9 @@ WRITER_BASE_URL = _env(
 WRITER_MODEL = _env(
     "WRITER_MODEL", "kimi-k3" if KIMI_API_KEY else "claude-sonnet-5"
 )
-WRITER_MAX_TOKENS = 400
+# Generous budget: thinking models (kimi-k3, sonnet-5) spend tokens on an
+# internal reasoning block before the post text.
+WRITER_MAX_TOKENS = int(_env("WRITER_MAX_TOKENS", "2000") or "2000")
 
 # Share of runs that publish a multi-post CHAIN (checklist / guide) rather than
 # a single post. Tala wants mostly chains, occasional singles. Tunable via env.

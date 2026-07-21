@@ -116,7 +116,7 @@ class WriterAgent:
         )
         client = self._client()
         raw = self._call(
-            client, [{"role": "user", "content": user_message}], max_tokens=900
+            client, [{"role": "user", "content": user_message}], max_tokens=4000
         )
         parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
         return [self._trim(p) for p in parts][:max_parts]
@@ -141,7 +141,7 @@ class WriterAgent:
         )
         client = self._client()
         text = self._call(client, [{"role": "user", "content": user_message}],
-                          max_tokens=200)
+                          max_tokens=1500)
         return self._trim(text)
 
     @staticmethod

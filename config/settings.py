@@ -41,6 +41,11 @@ WRITER_MODEL = _env(
 # internal reasoning block before the post text.
 WRITER_MAX_TOKENS = int(_env("WRITER_MAX_TOKENS", "2000") or "2000")
 
+# Cap on the thinking block so it can never eat the whole max_tokens budget
+# (kimi-k3 happily burns 4000 tokens thinking about one post). 0 = disable
+# thinking entirely.
+WRITER_THINKING_BUDGET = int(_env("WRITER_THINKING_BUDGET", "1024") or "1024")
+
 # Share of runs that publish a multi-post CHAIN (checklist / guide) rather than
 # a single post. Tala wants mostly chains, occasional singles. Tunable via env.
 CHAIN_PROBABILITY = float(_env("CHAIN_PROBABILITY", "0.9") or "0.9")

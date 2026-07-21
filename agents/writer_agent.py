@@ -161,12 +161,18 @@ class WriterAgent:
         # burn the whole budget on it, returning no text at all — so take text
         # blocks only, and retry once with double the budget on an empty reply.
         budget = max_tokens or self.max_tokens
+        thinking = (
+            {"type": "enabled", "budget_tokens": settings.WRITER_THINKING_BUDGET}
+            if settings.WRITER_THINKING_BUDGET
+            else {"type": "disabled"}
+        )
         for _attempt in range(2):
             response = client.messages.create(
                 model=self.model,
                 max_tokens=budget,
                 system=self.system_prompt,
                 messages=messages,
+                thinking=thinking,
             )
             text = "".join(
                 b.text for b in response.content if getattr(b, "type", "") == "text"

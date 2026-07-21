@@ -157,19 +157,28 @@ class WriterAgent:
         return Anthropic(**kwargs)
 
     def _call(self, client, messages: list, max_tokens: int | None = None) -> str:
-        response = client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens or self.max_tokens,
-            system=self.system_prompt,
-            messages=messages,
+        # Thinking models (kimi-k3, sonnet-5) prepend a ThinkingBlock and can
+        # burn the whole budget on it, returning no text at all — so take text
+        # blocks only, and retry once with double the budget on an empty reply.
+        budget = max_tokens or self.max_tokens
+        for _attempt in range(2):
+            response = client.messages.create(
+                model=self.model,
+                max_tokens=budget,
+                system=self.system_prompt,
+                messages=messages,
+            )
+            text = "".join(
+                b.text for b in response.content if getattr(b, "type", "") == "text"
+            )
+            text = text.strip().strip('"').strip()
+            if text:
+                return self._sanitize(text)
+            budget *= 2
+        raise RuntimeError(
+            f"writer returned no text after 2 attempts (model={self.model}, "
+            f"stop_reason={getattr(response, 'stop_reason', '?')})"
         )
-        # Models with thinking enabled (e.g. sonnet-5) prepend a ThinkingBlock;
-        # take the text blocks only.
-        text = "".join(
-            b.text for b in response.content if getattr(b, "type", "") == "text"
-        )
-        text = text.strip().strip('"').strip()
-        return self._sanitize(text)
 
     @staticmethod
     def _sanitize(text: str) -> str:

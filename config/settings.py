@@ -35,7 +35,7 @@ WRITER_BASE_URL = _env(
     "WRITER_BASE_URL", "https://api.moonshot.ai/anthropic" if KIMI_API_KEY else ""
 )
 WRITER_MODEL = _env(
-    "WRITER_MODEL", "kimi-k2-0905-preview" if KIMI_API_KEY else "claude-sonnet-5"
+    "WRITER_MODEL", "kimi-k3" if KIMI_API_KEY else "claude-sonnet-5"
 )
 WRITER_MAX_TOKENS = 400
 

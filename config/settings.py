@@ -71,13 +71,15 @@ TALA_COMMENT_MIN_GAP_MINUTES = int(
     _env("COMMENT_MIN_GAP_MINUTES", "90") or "90"
 )
 
-# Images. A "manifest" is a public URL (e.g. a file on Cloudflare R2) that lists
-# image URLs — either a JSON array, a JSON object with an "images" key, or plain
-# text with one URL per line. The pipeline fetches it and attaches a RANDOM image
-# to a post with probability IMAGE_PROBABILITY. Leave the manifest empty to keep
-# posts text-only (default). To add pictures: upload them to CF, list their public
-# URLs in one manifest file, and put that file's URL here.
-TALA_IMAGE_MANIFEST_URL = _env("TALA_IMAGE_MANIFEST_URL")
+# Images. A "manifest" lists image URLs — a JSON array, a {"images":[...]} object,
+# or plain text with one URL per line. It can be a local file committed in the repo
+# (default: config/tala_images.txt) or a public URL (e.g. a Cloudflare R2 file).
+# The pipeline attaches a RANDOM image to a post with probability IMAGE_PROBABILITY.
+# To add pictures: append their public URLs to config/tala_images.txt and push, or
+# point TALA_IMAGE_MANIFEST_URL at a hosted manifest. Empty source = text-only.
+TALA_IMAGE_MANIFEST_URL = _env(
+    "TALA_IMAGE_MANIFEST_URL", str(CONFIG_DIR / "tala_images.txt")
+)
 TALA_IMAGE_PROBABILITY = float(_env("TALA_IMAGE_PROBABILITY", "1.0") or "1.0")
 BLACKSEA_IMAGE_MANIFEST_URL = _env("BLACKSEA_IMAGE_MANIFEST_URL")
 BLACKSEA_IMAGE_PROBABILITY = float(_env("BLACKSEA_IMAGE_PROBABILITY", "0") or "0")

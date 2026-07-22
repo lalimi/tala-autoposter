@@ -70,9 +70,22 @@ def run_pipeline(
 
     from agents.publisher_agent import PublisherAgent
 
+    # Maybe attach a random image from the brand's manifest (viral_dna: images
+    # lift reach ~2.8x). Best-effort — a missing/broken manifest posts text-only.
+    image_url = None
+    if brand.image_manifest_url and random.random() < brand.image_probability:
+        from agents.image_picker import pick_image
+
+        image_url = pick_image(brand.image_manifest_url)
+        if image_url:
+            logger.info("[%s] attaching image | %s", brand.key, image_url)
+
     try:
         pub = PublisherAgent(brand)
-        result = pub.publish_thread(parts) if parts else pub.publish(post_text)
+        if parts:
+            result = pub.publish_thread(parts, image_url=image_url)
+        else:
+            result = pub.publish(post_text, image_url=image_url)
         post_id = result.get("post_id")
         memory.mark_published(row_id, post_id)
         logger.info(

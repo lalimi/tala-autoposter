@@ -156,6 +156,8 @@ class Brand:
     min_gap_minutes: int     # self-throttle: min minutes between published posts
     comments_enabled: bool   # whether this brand replies under other people's posts
     comment_min_gap_minutes: int  # self-throttle for comments
+    image_manifest_url: str = ""   # public URL listing image URLs (empty = text-only)
+    image_probability: float = 0.0  # chance a post gets a random image from the manifest
 
 
 TALA = Brand(
@@ -172,6 +174,8 @@ TALA = Brand(
     min_gap_minutes=settings.TALA_MIN_GAP_MINUTES,
     comments_enabled=True,
     comment_min_gap_minutes=settings.TALA_COMMENT_MIN_GAP_MINUTES,
+    image_manifest_url=settings.TALA_IMAGE_MANIFEST_URL,
+    image_probability=settings.TALA_IMAGE_PROBABILITY,
 )
 
 BLACKSEA = Brand(
@@ -189,6 +193,8 @@ BLACKSEA = Brand(
     min_gap_minutes=settings.BLACKSEA_MIN_GAP_MINUTES,
     comments_enabled=False,  # blacksea only posts for now
     comment_min_gap_minutes=settings.BLACKSEA_MIN_GAP_MINUTES,
+    image_manifest_url=settings.BLACKSEA_IMAGE_MANIFEST_URL,
+    image_probability=settings.BLACKSEA_IMAGE_PROBABILITY,
 )
 
 

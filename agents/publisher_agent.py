@@ -29,11 +29,11 @@ class PublisherAgent:
         # Resolved at publish time so the scheduler picks up auto-refreshes.
         self.token = ""
 
-    def publish(self, text: str) -> dict:
-        """Publish a single standalone post."""
+    def publish(self, text: str, image_url: str | None = None) -> dict:
+        """Publish a single standalone post, optionally with an image."""
         self.token = get_valid_token(self.brand)  # refreshes itself near expiry
         self._check_len(text)
-        pid = self._publish_one(text)
+        pid = self._publish_one(text, image_url=image_url)
         return {"post_id": pid, "parts": [pid], "raw": {"id": pid}}
 
     def reply_to(self, text: str, reply_to_id: str) -> dict:
@@ -44,9 +44,10 @@ class PublisherAgent:
         pid = self._publish_one(text, reply_to_id=reply_to_id, timeout=25, interval=2)
         return {"post_id": pid, "parts": [pid], "raw": {"id": pid}}
 
-    def publish_thread(self, parts: list[str]) -> dict:
+    def publish_thread(self, parts: list[str], image_url: str | None = None) -> dict:
         """Publish a reply-chain: post part 0, then each part as a reply to the
-        previous one (Threads `reply_to_id`)."""
+        previous one (Threads `reply_to_id`). An image, if given, goes on the
+        first part (the one that shows in the feed)."""
         self.token = get_valid_token(self.brand)
         parts = [p for p in parts if p and p.strip()]
         if not parts:
@@ -56,9 +57,13 @@ class PublisherAgent:
 
         ids: list[str] = []
         reply_to = None
-        for p in parts:
+        for i, p in enumerate(parts):
             # Shorter per-part budget so a chain fits Vercel's 60s function cap.
-            pid = self._publish_one(p, reply_to_id=reply_to, timeout=25, interval=2)
+            pid = self._publish_one(
+                p, reply_to_id=reply_to,
+                image_url=image_url if i == 0 else None,
+                timeout=25, interval=2,
+            )
             ids.append(pid)
             reply_to = pid
         return {"post_id": ids[0], "parts": ids, "raw": {"ids": ids}}
@@ -70,9 +75,15 @@ class PublisherAgent:
 
     def _publish_one(
         self, text: str, reply_to_id: str | None = None,
+        image_url: str | None = None,
         timeout: int = 45, interval: int = 3,
     ) -> str:
-        params = {"text": text, "media_type": "TEXT"}
+        if image_url:
+            # Image post: text becomes the caption; media_type must be IMAGE and
+            # image_url a publicly reachable URL (Meta fetches it server-side).
+            params = {"text": text, "media_type": "IMAGE", "image_url": image_url}
+        else:
+            params = {"text": text, "media_type": "TEXT"}
         if reply_to_id:
             params["reply_to_id"] = reply_to_id  # makes this post a reply -> chain
         container = self._post("/me/threads", params)

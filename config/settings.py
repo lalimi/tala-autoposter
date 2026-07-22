@@ -71,6 +71,17 @@ TALA_COMMENT_MIN_GAP_MINUTES = int(
     _env("COMMENT_MIN_GAP_MINUTES", "90") or "90"
 )
 
+# Images. A "manifest" is a public URL (e.g. a file on Cloudflare R2) that lists
+# image URLs — either a JSON array, a JSON object with an "images" key, or plain
+# text with one URL per line. The pipeline fetches it and attaches a RANDOM image
+# to a post with probability IMAGE_PROBABILITY. Leave the manifest empty to keep
+# posts text-only (default). To add pictures: upload them to CF, list their public
+# URLs in one manifest file, and put that file's URL here.
+TALA_IMAGE_MANIFEST_URL = _env("TALA_IMAGE_MANIFEST_URL")
+TALA_IMAGE_PROBABILITY = float(_env("TALA_IMAGE_PROBABILITY", "1.0") or "1.0")
+BLACKSEA_IMAGE_MANIFEST_URL = _env("BLACKSEA_IMAGE_MANIFEST_URL")
+BLACKSEA_IMAGE_PROBABILITY = float(_env("BLACKSEA_IMAGE_PROBABILITY", "0") or "0")
+
 # Max posts per chain. Capped at 3 so a whole chain finishes inside Vercel's 60s
 # function limit (each Threads publish round-trip is ~15s). On an always-on host
 # (VPS) with no time cap, set CHAIN_MAX_PARTS=5 in the env for richer guides.

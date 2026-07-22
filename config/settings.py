@@ -80,7 +80,8 @@ TALA_COMMENT_MIN_GAP_MINUTES = int(
 TALA_IMAGE_MANIFEST_URL = _env(
     "TALA_IMAGE_MANIFEST_URL", str(CONFIG_DIR / "tala_images.txt")
 )
-TALA_IMAGE_PROBABILITY = float(_env("TALA_IMAGE_PROBABILITY", "1.0") or "1.0")
+# ~1 in 3 posts gets an image (viral_dna: image every ~3rd post, not every one).
+TALA_IMAGE_PROBABILITY = float(_env("TALA_IMAGE_PROBABILITY", "0.35") or "0.35")
 BLACKSEA_IMAGE_MANIFEST_URL = _env("BLACKSEA_IMAGE_MANIFEST_URL")
 BLACKSEA_IMAGE_PROBABILITY = float(_env("BLACKSEA_IMAGE_PROBABILITY", "0") or "0")
 

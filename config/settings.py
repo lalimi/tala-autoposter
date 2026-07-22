@@ -34,17 +34,18 @@ WRITER_API_KEY = KIMI_API_KEY or ANTHROPIC_API_KEY
 WRITER_BASE_URL = _env(
     "WRITER_BASE_URL", "https://api.moonshot.ai/anthropic" if KIMI_API_KEY else ""
 )
+# Default to kimi-k2.6 with thinking OFF: ~4x cheaper output than k3 ($0.95/$4 vs
+# $3/$15 per 1M) and no wasted reasoning tokens. Quality on short viral posts is
+# on par with k3. Bump WRITER_MODEL=kimi-k3 in env if a harder task ever needs it.
 WRITER_MODEL = _env(
-    "WRITER_MODEL", "kimi-k3" if KIMI_API_KEY else "claude-sonnet-5"
+    "WRITER_MODEL", "kimi-k2.6" if KIMI_API_KEY else "claude-sonnet-5"
 )
-# Generous budget: thinking models (kimi-k3, sonnet-5) spend tokens on an
-# internal reasoning block before the post text.
-WRITER_MAX_TOKENS = int(_env("WRITER_MAX_TOKENS", "2000") or "2000")
+WRITER_MAX_TOKENS = int(_env("WRITER_MAX_TOKENS", "800") or "800")
 
-# Cap on the thinking block so it can never eat the whole max_tokens budget
-# (kimi-k3 happily burns 4000 tokens thinking about one post). 0 = disable
-# thinking entirely.
-WRITER_THINKING_BUDGET = int(_env("WRITER_THINKING_BUDGET", "1024") or "1024")
+# Thinking budget (tokens the model may spend reasoning before the post). 0 =
+# disabled — the cheapest setting and plenty for short posts. Raise it (e.g. 1024)
+# only if you switch to a thinking model and want it to plan first.
+WRITER_THINKING_BUDGET = int(_env("WRITER_THINKING_BUDGET", "0") or "0")
 
 # Share of runs that publish a multi-post CHAIN (checklist / guide) rather than
 # a single post. Tala wants mostly chains, occasional singles. Tunable via env.

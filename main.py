@@ -58,7 +58,7 @@ def print_stats(brand) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Tala autonomous Threads autoposter")
     parser.add_argument("--brand", default="tala",
-                        help="which account to run: tala (default) or blacksea")
+                        help="which account to run: tala (default), blacksea or denys")
     parser.add_argument("--test", action="store_true",
                         help="run pipeline once, print post, do NOT publish")
     parser.add_argument("--dry-run", action="store_true",

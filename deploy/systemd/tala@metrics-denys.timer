@@ -1,0 +1,10 @@
+[Unit]
+Description=fetch Threads metrics for denys posts (>=24h old)
+
+[Timer]
+OnCalendar=*-*-* *:53:00
+Persistent=true
+Unit=tala@metrics-denys.service
+
+[Install]
+WantedBy=timers.target

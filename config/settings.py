@@ -57,12 +57,18 @@ BLACKSEA_CHAIN_PROBABILITY = float(
     _env("BLACKSEA_CHAIN_PROBABILITY", "0.2") or "0.2"
 )
 
+# @denys — mostly short sarcastic single posts (curilka style), rare tips chain.
+DENYS_CHAIN_PROBABILITY = float(
+    _env("DENYS_CHAIN_PROBABILITY", "0.15") or "0.15"
+)
+
 # Self-throttle: the minimum minutes between published posts per brand. The cron
 # fires often (every ~30 min) but the pipeline skips a tick if the last post is
 # newer than this — so a dropped/delayed GitHub run is caught by the next one
 # instead of leaving a gap. Tala ≈ every 2h; blacksea ≈ 3-4 posts across the day.
 TALA_MIN_GAP_MINUTES = int(_env("POST_MIN_GAP_MINUTES", "115") or "115")
 BLACKSEA_MIN_GAP_MINUTES = int(_env("BLACKSEA_MIN_GAP_MINUTES", "210") or "210")
+DENYS_MIN_GAP_MINUTES = int(_env("DENYS_MIN_GAP_MINUTES", "175") or "175")
 
 # Commenting (replying under other people's posts). Only tala comments for now.
 # Candidates are scraped by keyword (scripts/refresh_signals.py) into
@@ -85,6 +91,10 @@ TALA_IMAGE_MANIFEST_URL = _env(
 TALA_IMAGE_PROBABILITY = float(_env("TALA_IMAGE_PROBABILITY", "0.35") or "0.35")
 BLACKSEA_IMAGE_MANIFEST_URL = _env("BLACKSEA_IMAGE_MANIFEST_URL")
 BLACKSEA_IMAGE_PROBABILITY = float(_env("BLACKSEA_IMAGE_PROBABILITY", "0") or "0")
+# Denys posts real screenshots of his own screen, not random stock — so text-only
+# by default. Set a manifest + probability later if he wants generic visuals.
+DENYS_IMAGE_MANIFEST_URL = _env("DENYS_IMAGE_MANIFEST_URL")
+DENYS_IMAGE_PROBABILITY = float(_env("DENYS_IMAGE_PROBABILITY", "0") or "0")
 
 # Max posts per chain. Capped at 3 so a whole chain finishes inside Vercel's 60s
 # function limit (each Threads publish round-trip is ~15s). On an always-on host
@@ -99,6 +109,10 @@ THREADS_ACCESS_TOKEN = _env("THREADS_ACCESS_TOKEN")
 # Long-lived token for the @blacksea brand account. Seeded into Supabase
 # blacksea_token on first run; this env var is only the first-run fallback.
 BLACKSEA_THREADS_ACCESS_TOKEN = _env("BLACKSEA_THREADS_ACCESS_TOKEN")
+
+# Long-lived token for the @denys account. Seeded into Supabase denys_token on
+# first run; this env var is only the first-run fallback.
+DENYS_THREADS_ACCESS_TOKEN = _env("DENYS_THREADS_ACCESS_TOKEN")
 
 # Supabase — single source of truth for state (posts, token, signals).
 SUPABASE_URL = _env("SUPABASE_URL", "https://mukjpousdanernohanrt.supabase.co")

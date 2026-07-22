@@ -11,10 +11,12 @@ PY="$APP/.venv/bin/python"
 case "${1:-}" in
   post-tala)      exec "$PY" main.py --brand tala     --tick ;;
   post-blacksea)  exec "$PY" main.py --brand blacksea --tick ;;
+  post-denys)     exec "$PY" main.py --brand denys    --tick ;;
   comment-tala)   exec "$PY" main.py --brand tala     --comment --tick ;;
   refresh)          exec "$PY" -m scripts.refresh_signals ;;
   metrics-tala)     exec "$PY" main.py --brand tala     --metrics ;;
   metrics-blacksea) exec "$PY" main.py --brand blacksea --metrics ;;
+  metrics-denys)    exec "$PY" main.py --brand denys    --metrics ;;
   update)
     # Force the repo to match remote (immune to local mode/file changes; .env is
     # git-ignored so it's untouched), then re-sync systemd units so unit/timer
@@ -26,7 +28,7 @@ case "${1:-}" in
         > /etc/systemd/system/tala@.service 2>/dev/null || true
       cp "$APP"/deploy/systemd/tala@*.timer /etc/systemd/system/ 2>/dev/null || true
       systemctl daemon-reload 2>/dev/null || true
-      for t in post-tala post-blacksea comment-tala metrics-tala metrics-blacksea refresh update; do
+      for t in post-tala post-blacksea post-denys comment-tala metrics-tala metrics-blacksea metrics-denys refresh update; do
         systemctl enable --now "tala@$t.timer" >/dev/null 2>&1 || true
       done
     fi

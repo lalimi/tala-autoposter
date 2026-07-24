@@ -19,14 +19,28 @@ import random
 
 import store
 from config import settings
+from config.brands import DENYS, TALA
 from parser.scraper import fetch_all
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 log = logging.getLogger("tala.refresh")
 
+# Brands that get scraped seed material. Each contributes its own topic keywords
+# (→ its own {prefix}_signals). Accounts are shared (peer signals are brand-
+# agnostic hook/structure orientation), so one account scrape feeds all of them.
+SCRAPE_BRANDS = (TALA, DENYS)
+
 PEER_SAMPLE = 10          # accounts scraped per refresh (rotates over runs)
-KEYWORD_SAMPLE = 18       # keywords scraped per run (random; rotates over the day)
+KEYWORD_SAMPLE = 18       # total keyword searches per run (split across brands)
 MAX_TOTAL = 300           # keep broad keyword coverage, not just the top 20
+
+
+def _topic_keywords(topics_file) -> list[str]:
+    try:
+        topics = json.load(open(topics_file, encoding="utf-8"))["topics"]
+    except (OSError, ValueError, KeyError):
+        return []
+    return list(dict.fromkeys(kw for t in topics for kw in t["keywords"]))
 
 
 def _signal_rows(posts: list[dict], kind: str) -> list[dict]:
@@ -52,47 +66,60 @@ def _load_keywords(path) -> list[str]:
 
 
 def main() -> None:
-    topics = json.load(open(settings.TOPICS_FILE, encoding="utf-8"))["topics"]
-    topic_kws = list(dict.fromkeys(kw for t in topics for kw in t["keywords"]))
-    # Broader, general/humour keywords used ONLY to find posts to comment under.
+    # Per-brand topic keywords (each brand seeds from its own → {prefix}_signals).
+    brand_kws = {b: _topic_keywords(b.topics_file) for b in SCRAPE_BRANDS}
+    # General/humour keywords used ONLY to find posts to comment under (Tala).
     comment_kws = _load_keywords(settings.CONFIG_DIR / "comment_keywords.json")
-    keywords = list(dict.fromkeys(topic_kws + comment_kws))
-    # Scrape a rotating random subset per run so one tick stays well under the
-    # systemd timeout; over the day's runs this covers everything.
-    if len(keywords) > KEYWORD_SAMPLE:
-        keywords = random.sample(keywords, KEYWORD_SAMPLE)
+
+    # Split the per-run keyword budget across brands so one tick stays under the
+    # systemd timeout; random rotation covers everything over the day. Leave a
+    # slice for comment keywords.
+    n = len(brand_kws) + (1 if comment_kws else 0)
+    per = max(3, KEYWORD_SAMPLE // n)
+
+    def _sample(kws):
+        return random.sample(kws, per) if len(kws) > per else list(kws)
+
+    brand_sample = {b: _sample(kws) for b, kws in brand_kws.items()}
+    comment_sample = _sample(comment_kws) if comment_kws else []
+    # One browser session scrapes the union of everything.
+    all_keywords = list(dict.fromkeys(
+        [kw for s in brand_sample.values() for kw in s] + comment_sample
+    ))
 
     accounts_file = settings.CONFIG_DIR / "accounts.json"
     accounts = json.load(open(accounts_file, encoding="utf-8")).get("accounts", [])
     if len(accounts) > PEER_SAMPLE:
         accounts = random.sample(accounts, PEER_SAMPLE)
 
-    log.info("scraping %d keywords + %d accounts...", len(keywords), len(accounts))
-    data = fetch_all(keywords, accounts, max_total=MAX_TOTAL)
+    log.info("scraping %d keywords (%s) + %d accounts...", len(all_keywords),
+             ", ".join(f"{b.key}:{len(s)}" for b, s in brand_sample.items()), len(accounts))
+    data = fetch_all(all_keywords, accounts, max_total=MAX_TOTAL)
 
-    # Signals that feed the WRITER come only from the niche topic keywords;
-    # the general comment keywords are for the comment queue, not for posts.
-    topic_set = set(topic_kws)
-    kw_for_signals = [p for p in data.get("keywords", []) if p.get("keyword") in topic_set]
-    kw_rows = _signal_rows(kw_for_signals, "keyword")
+    kw_posts = data.get("keywords", [])
+    # Peer posts (tracked accounts) are brand-agnostic hook/structure orientation.
     peer_rows = _signal_rows(data.get("profiles", []), "peer")
 
-    if not kw_rows and not peer_rows:
+    if not kw_posts and not peer_rows:
         log.warning("scraper returned nothing — keeping existing signals (no wipe)")
         return
 
-    # Only replace a kind if we actually got fresh data for it.
-    if kw_rows:
-        store.replace_signals("keyword", kw_rows)
-    if peer_rows:
-        store.replace_signals("peer", peer_rows)
-    log.info("stored %d keyword + %d peer signals", len(kw_rows), len(peer_rows))
+    # Write per brand: its own keyword posts, plus the shared peer batch.
+    for brand, kws in brand_kws.items():
+        kset = set(kws)
+        kw_rows = _signal_rows([p for p in kw_posts if p.get("keyword") in kset], "keyword")
+        if kw_rows:
+            store.replace_signals("keyword", kw_rows, prefix=brand.table_prefix)
+        if peer_rows:
+            store.replace_signals("peer", peer_rows, prefix=brand.table_prefix)
+        log.info("[%s] stored %d keyword + %d peer signals",
+                 brand.key, len(kw_rows), len(peer_rows))
 
-    # Queue keyword posts as comment candidates (those that carry a Threads id).
+    # Comment candidates → Tala's queue only (only Tala comments for now).
     targets = [
         {"thread_id": p["id"], "username": p.get("source"), "text": p.get("text", ""),
          "url": p.get("url"), "likes": p.get("likes", 0), "keyword": p.get("keyword")}
-        for p in data.get("keywords", []) if p.get("id") and p.get("text")
+        for p in kw_posts if p.get("id") and p.get("text")
     ]
     if targets:
         store.save_comment_targets(targets)

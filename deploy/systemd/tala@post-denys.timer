@@ -1,5 +1,5 @@
 [Unit]
-Description=denys post tick (daytime only; warm-up cadence ~3-4/day)
+Description=denys post tick (evening window; warm-up cadence ~3/day)
 
 [Timer]
 # New account warm-up in the high-reach evening window (14-22 UTC = 17:00-01:00

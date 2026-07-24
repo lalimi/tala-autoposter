@@ -175,9 +175,19 @@ async def _scrape_profile(username: str, context) -> list[dict]:
         await page.close()
 
 
+def _clean_text(s: str) -> str:
+    """Drop characters that survive scraping as garbage. Emoji occasionally come
+    through as U+FFFD / box glyphs, and the writer then treats them as meaningful
+    ("побачив ▓ і зрозумів...") — which reads as a broken bot when published."""
+    for ch in ("�", "▓", "▒", "░", "■", "□"):
+        s = s.replace(ch, "")
+    # collapse the whitespace the removal leaves behind, keeping line breaks
+    return re.sub(r"[ \t]{2,}", " ", s).strip()
+
+
 def _to_contract(post: dict, tag: str) -> dict:
     return {
-        "text": post["text"].strip(),
+        "text": _clean_text(post["text"]),
         "source": post.get("username") or "threads.net",
         "url": post.get("url", ""),
         "keyword": tag,

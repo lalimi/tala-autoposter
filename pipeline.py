@@ -17,6 +17,11 @@ from config.brands import TALA, Brand
 
 logger = logging.getLogger("tala")
 
+# How many scraped candidates one comment tick may evaluate before giving up.
+# Keyword noise means most get SKIPped, so a single-candidate tick would rarely
+# land a comment.
+COMMENT_CANDIDATES_PER_TICK = 5
+
 
 def run_pipeline(
     brand: Brand = TALA, publish: bool = True, respect_min_gap: bool = False
@@ -150,21 +155,29 @@ def run_comment(
                         brand.key, mins, gap)
             return None
 
-    target = store.next_comment_target(brand.table_prefix)
-    if not target:
-        logger.info("[%s] no comment targets (run the scraper)", brand.key)
-        return None
-
     from agents.writer_agent import WriterAgent
 
-    text = WriterAgent(brand).run_comment(target)
-
-    # The writer answers SKIP when no decent, kind comment fits this post (e.g.
-    # someone venting or job-hunting). Drop the target instead of forcing a reply.
-    if not text or text.strip().upper().startswith("SKIP"):
+    # Keyword search is noisy (a "ставка" query pulls mortgage posts), so the
+    # writer SKIPs anything off-niche or unkind. Walk a few candidates per tick
+    # so heavy skipping doesn't mean the account never comments at all.
+    writer = WriterAgent(brand)
+    target, text = None, ""
+    for _ in range(COMMENT_CANDIDATES_PER_TICK):
+        candidate = store.next_comment_target(brand.table_prefix)
+        if not candidate:
+            logger.info("[%s] no comment targets (run the scraper)", brand.key)
+            return None
+        draft = writer.run_comment(candidate)
+        if draft and not draft.strip().upper().startswith("SKIP"):
+            target, text = candidate, draft
+            break
         logger.info("[%s] comment skipped by writer -> @%s",
-                    brand.key, target.get("username"))
-        store.mark_comment_failed(target["id"], brand.table_prefix)
+                    brand.key, candidate.get("username"))
+        store.mark_comment_failed(candidate["id"], brand.table_prefix)
+
+    if not target:
+        logger.info("[%s] no suitable comment target in %d candidates",
+                    brand.key, COMMENT_CANDIDATES_PER_TICK)
         return None
 
     logger.info("[%s] comment draft -> @%s | %s",

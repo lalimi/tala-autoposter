@@ -19,6 +19,12 @@ def proxy_launch_kwargs() -> dict:
       socks5://user:pass@host:1080
       1.2.3.4:8000
     """
+    # Import settings so its load_dotenv() has run — otherwise SCRAPER_PROXY from
+    # .env isn't in os.environ yet when the scraper is started standalone.
+    try:
+        from config import settings  # noqa: F401
+    except Exception:
+        pass
     raw = (os.getenv("SCRAPER_PROXY") or "").strip()
     if not raw:
         return {}

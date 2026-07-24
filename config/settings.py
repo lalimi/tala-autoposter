@@ -68,7 +68,9 @@ DENYS_CHAIN_PROBABILITY = float(
 # instead of leaving a gap. Tala ≈ every 2h; blacksea ≈ 3-4 posts across the day.
 TALA_MIN_GAP_MINUTES = int(_env("POST_MIN_GAP_MINUTES", "115") or "115")
 BLACKSEA_MIN_GAP_MINUTES = int(_env("BLACKSEA_MIN_GAP_MINUTES", "210") or "210")
-DENYS_MIN_GAP_MINUTES = int(_env("DENYS_MIN_GAP_MINUTES", "175") or "175")
+# New-account warm-up: ~4h gap → 3-4 posts/day inside the daytime window. Lower
+# to ~175 (≈ every 3h) once the account is a couple of weeks old and trusted.
+DENYS_MIN_GAP_MINUTES = int(_env("DENYS_MIN_GAP_MINUTES", "240") or "240")
 
 # Commenting (replying under other people's posts). Only tala comments for now.
 # Candidates are scraped by keyword (scripts/refresh_signals.py) into
@@ -113,6 +115,14 @@ BLACKSEA_THREADS_ACCESS_TOKEN = _env("BLACKSEA_THREADS_ACCESS_TOKEN")
 # Long-lived token for the @denys account. Seeded into Supabase denys_token on
 # first run; this env var is only the first-run fallback.
 DENYS_THREADS_ACCESS_TOKEN = _env("DENYS_THREADS_ACCESS_TOKEN")
+
+# Our own Threads handles. Never comment under / treat as a peer signal one of
+# our own accounts — cross-engagement from a single IP is a coordination flag.
+OWN_HANDLES = {
+    h.strip().lstrip("@").lower()
+    for h in _env("OWN_HANDLES", "tala.sav,den.bilyy,blacksea.ua").split(",")
+    if h.strip()
+}
 
 # Supabase — single source of truth for state (posts, token, signals).
 SUPABASE_URL = _env("SUPABASE_URL", "https://mukjpousdanernohanrt.supabase.co")

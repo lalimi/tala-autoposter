@@ -5,6 +5,9 @@ Description=tala post tick (hourly; self-throttle gives ~every 2h)
 # Checked hourly at :07; run_pipeline(--tick) only posts if >TALA_MIN_GAP_MINUTES
 # since the last post, so the effective cadence is ~2h and a missed hour catches up.
 OnCalendar=*-*-* *:07:00
+# Jitter the real fire time by up to ~8 min so posts don't land on an exact
+# robotic minute every hour.
+RandomizedDelaySec=500
 Persistent=true
 Unit=tala@post-tala.service
 

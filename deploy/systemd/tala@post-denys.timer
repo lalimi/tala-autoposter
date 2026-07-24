@@ -1,10 +1,12 @@
 [Unit]
-Description=denys post tick (hourly; self-throttle gives ~every 3h)
+Description=denys post tick (daytime only; warm-up cadence ~3-4/day)
 
 [Timer]
-# Checked hourly at :23; run_pipeline(--tick) only posts if >DENYS_MIN_GAP_MINUTES
-# since the last post, so the effective cadence is ~3h and a missed hour catches up.
-OnCalendar=*-*-* *:23:00
+# New account warm-up: daytime window only (06-19 UTC ≈ 09-22 Kyiv) so it never
+# posts at 3am like a bot, and a larger DENYS_MIN_GAP_MINUTES thins it to a few
+# posts/day. Relax both once the account is a couple of weeks old.
+OnCalendar=*-*-* 06..19:23:00
+RandomizedDelaySec=500
 Persistent=true
 Unit=tala@post-denys.service
 

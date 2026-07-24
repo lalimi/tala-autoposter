@@ -169,7 +169,16 @@ def run_comment(
     try:
         from parser.commenter import post_reply
 
-        ok = post_reply(target.get("url", ""), text)
+        # Comment as THIS brand: the reply is published by whoever the session
+        # is logged in as. Without the brand's own session we'd silently reply
+        # from another account, so refuse instead.
+        session = brand.session_file
+        if not session and brand is not TALA:
+            logger.error("[%s] no session_file — refusing to comment from another "
+                         "account's session", brand.key)
+            return None
+
+        ok = post_reply(target.get("url", ""), text, session_file=session or None)
         if ok:
             store.mark_commented(target["id"], None, text, brand.table_prefix)
             logger.info("[%s] commented | @%s | %s",

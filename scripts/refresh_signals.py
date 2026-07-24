@@ -115,19 +115,24 @@ def main() -> None:
         log.info("[%s] stored %d keyword + %d peer signals",
                  brand.key, len(kw_rows), len(peer_rows))
 
-    # Comment candidates → Tala's queue only (only Tala comments for now).
-    # Never queue our own accounts' posts — replying to ourselves from one IP is
-    # a coordinated-behaviour flag.
-    targets = [
-        {"thread_id": p["id"], "username": p.get("source"), "text": p.get("text", ""),
-         "url": p.get("url"), "likes": p.get("likes", 0), "keyword": p.get("keyword")}
-        for p in kw_posts
-        if p.get("id") and p.get("text")
-        and (p.get("source") or "").lstrip("@").lower() not in settings.OWN_HANDLES
-    ]
-    if targets:
-        store.save_comment_targets(targets)
-        log.info("queued %d comment targets", len(targets))
+    # Comment candidates, per commenting brand — each gets the posts found by ITS
+    # own keywords, so Denys replies in his niche and Tala in hers. Never queue
+    # our own accounts' posts: replying to ourselves from one IP is a
+    # coordinated-behaviour flag.
+    for brand, kws in brand_kws.items():
+        if not brand.comments_enabled:
+            continue
+        kset = set(kws)
+        targets = [
+            {"thread_id": p["id"], "username": p.get("source"), "text": p.get("text", ""),
+             "url": p.get("url"), "likes": p.get("likes", 0), "keyword": p.get("keyword")}
+            for p in kw_posts
+            if p.get("id") and p.get("text") and p.get("keyword") in kset
+            and (p.get("source") or "").lstrip("@").lower() not in settings.OWN_HANDLES
+        ]
+        if targets:
+            store.save_comment_targets(targets, prefix=brand.table_prefix)
+            log.info("[%s] queued %d comment targets", brand.key, len(targets))
 
 
 if __name__ == "__main__":

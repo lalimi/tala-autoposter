@@ -1,0 +1,14 @@
+[Unit]
+Description=denys comment tick (evening window; slow warm-up ~3/day)
+
+[Timer]
+# Brand-new account: browser automation from a fresh profile is the riskiest
+# thing we do, so keep it slow and human-hour only. DENYS_COMMENT_MIN_GAP_MINUTES
+# (180, jittered up to 2x in the pipeline) thins these checks to ~3 replies/day.
+OnCalendar=*-*-* 14..21:41:00
+RandomizedDelaySec=900
+Persistent=true
+Unit=tala@comment-denys.service
+
+[Install]
+WantedBy=timers.target

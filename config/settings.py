@@ -79,6 +79,17 @@ DENYS_MIN_GAP_MINUTES = int(_env("DENYS_MIN_GAP_MINUTES", "240") or "240")
 TALA_COMMENT_MIN_GAP_MINUTES = int(
     _env("COMMENT_MIN_GAP_MINUTES", "90") or "90"
 )
+# Denys is a brand-new account (days old, ~0 followers): browser automation from
+# a fresh account is the highest-risk profile there is, so start deliberately
+# slow — ~3 comments a day. Lower once the account has some history.
+DENYS_COMMENT_MIN_GAP_MINUTES = int(
+    _env("DENYS_COMMENT_MIN_GAP_MINUTES", "180") or "180"
+)
+# Denys's own browser cookie jar — replies are posted as whoever is logged in
+# here, so this must be a session for @den.bilyy (NOT the scraper/Tala one).
+DENYS_SESSION_FILE = _env(
+    "DENYS_SESSION_FILE", str(BASE_DIR / "parser" / "denys_session.json")
+)
 
 # Images. A "manifest" lists image URLs — a JSON array, a {"images":[...]} object,
 # or plain text with one URL per line. It can be a local file committed in the repo

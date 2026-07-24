@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from pathlib import Path
 
 from parser.scraper import UA, _run, _session_file
 
@@ -59,7 +60,7 @@ async def _open_composer(page) -> bool:
         return False
 
 
-async def _post_reply_async(url: str, text: str) -> bool:
+async def _post_reply_async(url: str, text: str, session_file=None) -> bool:
     from playwright.async_api import async_playwright
 
     from parser.browser import proxy_launch_kwargs
@@ -74,9 +75,11 @@ async def _post_reply_async(url: str, text: str) -> bool:
         )
         page = None
         try:
-            sf = _session_file()
+            # The reply is published by whoever this cookie jar is logged in as,
+            # so each brand needs its OWN session file to comment as itself.
+            sf = Path(session_file) if session_file else _session_file()
             if not sf.exists():
-                print(f"⚠️  no scraper session at {sf}")
+                print(f"⚠️  no browser session at {sf}")
                 return False
             await context.add_cookies(json.loads(sf.read_text()))
             page = await context.new_page()
@@ -119,9 +122,10 @@ async def _post_reply_async(url: str, text: str) -> bool:
             await browser.close()
 
 
-def post_reply(url: str, text: str) -> bool:
-    """Publish `text` as a reply under the post at `url`. Best-effort; returns
-    False on any failure (caller marks the target failed and moves on)."""
+def post_reply(url: str, text: str, session_file=None) -> bool:
+    """Publish `text` as a reply under the post at `url`, as the account whose
+    cookies are in `session_file` (defaults to the scraper session). Best-effort;
+    returns False on any failure (caller marks the target failed and moves on)."""
     if not url:
         return False
-    return bool(_run(_post_reply_async(url, text)))
+    return bool(_run(_post_reply_async(url, text, session_file)))

@@ -228,6 +228,10 @@ class Brand:
     comment_min_gap_minutes: int  # self-throttle for comments
     image_manifest_url: str = ""   # public URL listing image URLs (empty = text-only)
     image_probability: float = 0.0  # chance a post gets a random image from the manifest
+    # Browser cookie jar used when commenting: replies are published by whoever
+    # this session is logged in as, so each commenting brand needs its own.
+    # Empty = fall back to the scraper session (parser/scout_session.json).
+    session_file: str = ""
 
 
 TALA = Brand(
@@ -280,10 +284,11 @@ DENYS = Brand(
     seed_token_attr="DENYS_THREADS_ACCESS_TOKEN",
     chain_probability=settings.DENYS_CHAIN_PROBABILITY,
     min_gap_minutes=settings.DENYS_MIN_GAP_MINUTES,
-    comments_enabled=False,  # posts only for now
-    comment_min_gap_minutes=settings.DENYS_MIN_GAP_MINUTES,
+    comments_enabled=True,
+    comment_min_gap_minutes=settings.DENYS_COMMENT_MIN_GAP_MINUTES,
     image_manifest_url=settings.DENYS_IMAGE_MANIFEST_URL,
     image_probability=settings.DENYS_IMAGE_PROBABILITY,
+    session_file=settings.DENYS_SESSION_FILE,
 )
 
 

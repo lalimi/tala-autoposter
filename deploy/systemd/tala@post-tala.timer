@@ -1,10 +1,13 @@
 [Unit]
-Description=tala post tick (hourly; self-throttle gives ~every 2h)
+Description=tala post tick (evening window; ~4 posts/day in the high-reach hours)
 
 [Timer]
-# Checked hourly at :07; run_pipeline(--tick) only posts if >TALA_MIN_GAP_MINUTES
-# since the last post, so the effective cadence is ~2h and a missed hour catches up.
-OnCalendar=*-*-* *:07:00
+# Measured on 200 posts: reach depends far more on WHEN than on what. Average
+# views by publish hour (UTC / Kyiv+3): 18:00→1400, 21:00→814, 20:00→781,
+# 19:00→599, vs only 103-250 across 08-17 UTC (midday Kyiv). So post into the
+# evening scroll (18:00-01:00 Kyiv) instead of spraying 12 posts across the day.
+# Checked hourly 15-22 UTC; TALA_MIN_GAP_MINUTES thins it to ~4 well-spaced posts.
+OnCalendar=*-*-* 15..22:07:00
 # Jitter the real fire time by up to ~8 min so posts don't land on an exact
 # robotic minute every hour.
 RandomizedDelaySec=500

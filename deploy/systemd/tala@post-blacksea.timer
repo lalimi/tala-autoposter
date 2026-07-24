@@ -2,9 +2,10 @@
 Description=blacksea post tick (hourly in the daytime window; ~3-4 posts/day)
 
 [Timer]
-# Hourly 06:13-19:13 (server time — keep the VPS in UTC). Self-throttle on
-# BLACKSEA_MIN_GAP_MINUTES (~3.5h) thins this to ~3-4 evenly spread posts.
-OnCalendar=*-*-* 06..19:13:00
+# Shifted into the high-reach evening window (13-22 UTC = 16:00-01:00 Kyiv);
+# midday UTC hours measured 3-6x worse for reach. Self-throttle on
+# BLACKSEA_MIN_GAP_MINUTES (~3.5h) thins this to ~3 evenly spread posts.
+OnCalendar=*-*-* 13..22:13:00
 RandomizedDelaySec=500
 Persistent=true
 Unit=tala@post-blacksea.service

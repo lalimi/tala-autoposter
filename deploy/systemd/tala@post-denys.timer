@@ -2,10 +2,10 @@
 Description=denys post tick (daytime only; warm-up cadence ~3-4/day)
 
 [Timer]
-# New account warm-up: daytime window only (06-19 UTC ≈ 09-22 Kyiv) so it never
-# posts at 3am like a bot, and a larger DENYS_MIN_GAP_MINUTES thins it to a few
+# New account warm-up in the high-reach evening window (14-22 UTC = 17:00-01:00
+# Kyiv); a larger DENYS_MIN_GAP_MINUTES thins it to a few
 # posts/day. Relax both once the account is a couple of weeks old.
-OnCalendar=*-*-* 06..19:23:00
+OnCalendar=*-*-* 14..22:23:00
 RandomizedDelaySec=500
 Persistent=true
 Unit=tala@post-denys.service

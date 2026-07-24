@@ -238,6 +238,30 @@ def peer_signals(hours: int = 72, limit: int = 3, prefix: str = "tala") -> list[
     return [f"@{r['source']} ({r['likes']}♥): {r['text'].strip()[:130]}" for r in rows]
 
 
+def top_seed(keywords: list[str], hours: int = 168, prefix: str = "tala") -> dict | None:
+    """The single highest-reach real scraped post on this topic, FULL text — the
+    seed the writer translates/adapts. Prefers a keyword-matched post; falls back
+    to the top peer post. Returns None when nothing has been scraped yet (the
+    writer then generates from the topic + angle instead)."""
+    def _fetch(params):
+        params["scraped_at"] = f"gte.{_cutoff_iso(hours)}"
+        params["order"] = "likes.desc"
+        params["limit"] = 1
+        return _req("GET", f"{prefix}_signals", params=params) or []
+
+    rows = []
+    if keywords:
+        rows = _fetch({"select": "text,likes,source", "kind": "eq.keyword",
+                       "keyword": _in_list(keywords)})
+    if not rows:
+        rows = _fetch({"select": "text,likes,source", "kind": "eq.peer"})
+    if not rows or not (rows[0].get("text") or "").strip():
+        return None
+    r = rows[0]
+    return {"text": r["text"].strip(), "likes": r.get("likes") or 0,
+            "source": r.get("source") or ""}
+
+
 def replace_signals(kind: str, rows: list[dict], prefix: str = "tala") -> None:
     """Used by the scraper: clear this kind, insert the fresh batch."""
     _req("DELETE", f"{prefix}_signals", params={"kind": f"eq.{kind}"},

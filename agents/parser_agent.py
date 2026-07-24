@@ -40,6 +40,9 @@ class ParserAgent:
             signals.append(f"немає свіжих сигналів по темі: {topic_name}")
 
         peer_signals = store.peer_signals(prefix=self.prefix)
+        # The single best real post on this topic — the writer translates/adapts
+        # it. None until the scraper has populated this brand's signals.
+        seed = store.top_seed(keywords, prefix=self.prefix)
 
         keyword = keywords[0]
         angle = self.brand.angle_template.format(keyword=keyword)
@@ -48,5 +51,6 @@ class ParserAgent:
             "keyword": keyword,
             "trend_signals": signals,
             "peer_signals": peer_signals,
+            "seed": seed,
             "angle": angle,
         }

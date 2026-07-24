@@ -25,30 +25,53 @@ class WriterAgent:
         best_post = memory.get_best_performing_post()
         recent_texts = memory.recent_post_texts()
 
-        # Only mention peer accounts when we actually have scraped peer signals
-        # (Tala does; the @blacksea brand account has none).
-        peer_line = ""
-        if brief.get("peer_signals"):
-            peer_line = (
-                f"що зараз публікують топ-акаунти ніші за охопленням "
-                f"(орієнтир по темах/форматах/хуках, НЕ копіювати дослівно): "
-                f"{brief['peer_signals']}\n"
+        seed = brief.get("seed")  # a real high-reach post to adapt, if scraped
+        if seed:
+            # Seed-driven: translate/adapt a post that actually worked, keeping
+            # its hook and structure close but regrounding it in this persona.
+            user_message = (
+                "ось РЕАЛЬНИЙ пост що зібрав багато реакцій "
+                f"({seed.get('likes', 0)}♥). твоя задача: переписати його "
+                "українською в СВОЄМУ голосі як пост для threads.\n\n"
+                f"пост-джерело:\n«{seed['text'][:600]}»\n\n"
+                f"дотична тема з твоєї ротації: {brief['keyword']}\n"
+                f"кут: {brief['angle']}\n\n"
+                "правила адаптації:\n"
+                "- тримайся близько до ХУКА і структури джерела, це те що спрацювало\n"
+                "- переклади й адаптуй ідею українською, природно, не дослівний переклад\n"
+                "- ВСІ особисті факти, цифри, суми, продукти замінюй на СВОЇ справжні "
+                "(зі свого системного промпта). чужі цифри й claims не переносити\n"
+                "- якщо джерело англійською чи про іншу нішу, бери лише механіку хука "
+                "й перекладай у свій контекст\n"
+                f"вже опубліковані теми (не повторювати): {recent_topics}\n"
+                f"останні пости (не повторюй їх): {recent_texts}\n"
+                f"максимум {MAX_CHARS} символів, ціль {TARGET_CHARS}.\n"
+                "поверни лише текст поста. без пояснень. без лапок навколо тексту."
             )
-
-        user_message = (
-            "напиши один threads пост на основі цього дослідження:\n\n"
-            f"тема: {brief['keyword']}\n"
-            f"сигнали: {brief['trend_signals']}\n"
-            f"{peer_line}"
-            f"кут: {brief['angle']}\n\n"
-            f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
-            f"останні пости (НЕ повторюй ці історії, деталі й формулювання): {recent_texts}\n"
-            f"пост який зайшов найкраще за переглядами (орієнтир на стиль, не копіювати): {best_post}\n\n"
-            f"важливо: тему “{brief['keyword']}” дослівно в пості не називати. "
-            "покажи її через конкретну ситуацію, деталь або цифру.\n"
-            f"максимум {MAX_CHARS} символів, ціль {TARGET_CHARS}.\n"
-            "поверни лише текст поста. без пояснень. без лапок навколо тексту."
-        )
+        else:
+            # No scraped seed yet (e.g. a brand without a scraper) — generate
+            # from the topic + angle as before.
+            peer_line = ""
+            if brief.get("peer_signals"):
+                peer_line = (
+                    f"що зараз публікують топ-акаунти ніші за охопленням "
+                    f"(орієнтир по темах/форматах/хуках, НЕ копіювати дослівно): "
+                    f"{brief['peer_signals']}\n"
+                )
+            user_message = (
+                "напиши один threads пост на основі цього дослідження:\n\n"
+                f"тема: {brief['keyword']}\n"
+                f"сигнали: {brief['trend_signals']}\n"
+                f"{peer_line}"
+                f"кут: {brief['angle']}\n\n"
+                f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
+                f"останні пости (НЕ повторюй ці історії, деталі й формулювання): {recent_texts}\n"
+                f"пост який зайшов найкраще за переглядами (орієнтир на стиль, не копіювати): {best_post}\n\n"
+                f"важливо: тему “{brief['keyword']}” дослівно в пості не називати. "
+                "покажи її через конкретну ситуацію, деталь або цифру.\n"
+                f"максимум {MAX_CHARS} символів, ціль {TARGET_CHARS}.\n"
+                "поверни лише текст поста. без пояснень. без лапок навколо тексту."
+            )
 
         client = self._client()
         text = self._call(client, [{"role": "user", "content": user_message}])
@@ -70,6 +93,8 @@ class WriterAgent:
                     },
                 ],
             )
+
+        text = self._deslop(client, text)
 
         # Last resort: hard-trim on a paragraph/line boundary so we never 400.
         if len(text) > MAX_CHARS:
@@ -118,6 +143,7 @@ class WriterAgent:
         raw = self._call(
             client, [{"role": "user", "content": user_message}], max_tokens=4000
         )
+        raw = self._deslop(client, raw, is_chain=True)
         parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
         return [self._trim(p) for p in parts][:max_parts]
 
@@ -143,6 +169,36 @@ class WriterAgent:
         text = self._call(client, [{"role": "user", "content": user_message}],
                           max_tokens=1500)
         return self._trim(text)
+
+    # Traits that read as AI-written and should be edited out.
+    _DESLOP_RULES = (
+        "прибери все що видає що це писав чат:\n"
+        "- вступні розгони й мета-фрази («ось», «сьогодні розкажу», «уяви»)\n"
+        "- симетричні конструкції («не X, а Y», «коли роблю — добре, коли ні — погано»)\n"
+        "- охайну мораль чи урок у фіналі, гладкі узагальнення, кліше\n"
+        "- рівні тричастинні структури де все занадто складається\n"
+        "додай натомість живого: обірвану думку, конкретну деталь якої не вигадаєш, "
+        "нерівний ритм, як пише жива людина між справами.\n"
+        "голос, факти, цифри й будь-які посилання ЗБЕРЕЖИ. довжину не збільшуй."
+    )
+
+    def _deslop(self, client, text: str, is_chain: bool = False) -> str:
+        """Editor pass: rewrite a draft to sound human, stripping AI tells.
+        Best-effort — on any failure the original draft is kept."""
+        try:
+            fmt = (
+                "це ЛАНЦЮЖОК постів, розділених рядком ---. збережи роздільники "
+                "--- і кількість частин.\n" if is_chain else ""
+            )
+            edited = self._call(client, [{"role": "user", "content": (
+                "нижче чернетка поста. перепиши її живіше.\n\n"
+                f"{fmt}{self._DESLOP_RULES}\n\n"
+                f"чернетка:\n{text}\n\n"
+                "поверни лише готовий текст, без пояснень і без лапок."
+            )}], max_tokens=1200 if is_chain else 700)
+            return edited if edited.strip() else text
+        except Exception:
+            return text
 
     @staticmethod
     def _client():

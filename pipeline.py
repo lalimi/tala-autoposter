@@ -158,6 +158,15 @@ def run_comment(
     from agents.writer_agent import WriterAgent
 
     text = WriterAgent(brand).run_comment(target)
+
+    # The writer answers SKIP when no decent, kind comment fits this post (e.g.
+    # someone venting or job-hunting). Drop the target instead of forcing a reply.
+    if not text or text.strip().upper().startswith("SKIP"):
+        logger.info("[%s] comment skipped by writer -> @%s",
+                    brand.key, target.get("username"))
+        store.mark_comment_failed(target["id"], brand.table_prefix)
+        return None
+
     logger.info("[%s] comment draft -> @%s | %s",
                 brand.key, target.get("username"), text[:60].replace("\n", " "))
 

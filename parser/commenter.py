@@ -62,9 +62,13 @@ async def _open_composer(page) -> bool:
 async def _post_reply_async(url: str, text: str) -> bool:
     from playwright.async_api import async_playwright
 
+    from parser.browser import proxy_launch_kwargs
+
     launch_args = ["--no-sandbox"] if os.getenv("PLAYWRIGHT_NO_SANDBOX") else []
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=launch_args)
+        browser = await p.chromium.launch(
+            headless=True, args=launch_args, **proxy_launch_kwargs()
+        )
         context = await browser.new_context(
             viewport={"width": 1280, "height": 900}, user_agent=UA
         )

@@ -39,6 +39,8 @@ import re
 from pathlib import Path
 from urllib.parse import quote
 
+from parser.browser import proxy_launch_kwargs
+
 # Where the Playwright cookie jar lives. Override with THREADS_SESSION_FILE.
 _DEFAULT_SESSION = Path(__file__).parent / "scout_session.json"
 # Fallback to the original viral-system session for local dev convenience.
@@ -209,7 +211,9 @@ async def _collect_async(
     launch_args = ["--no-sandbox"] if os.getenv("PLAYWRIGHT_NO_SANDBOX") else []
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=launch_args)
+        browser = await p.chromium.launch(
+            headless=True, args=launch_args, **proxy_launch_kwargs()
+        )
         context = await browser.new_context(
             viewport={"width": 1280, "height": 900}, user_agent=UA
         )

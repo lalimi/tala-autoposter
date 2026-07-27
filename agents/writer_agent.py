@@ -3,10 +3,13 @@ in the brand's voice from a ResearchBrief. The voice (system prompt) comes from
 the Brand, so the same agent writes for @tala.sav and @blacksea."""
 from __future__ import annotations
 
+import logging
 import re
 
 from config import settings
 from config.brands import TALA, Brand
+
+logger = logging.getLogger("tala")
 
 # Threads hard limit; we aim a little under it for safety.
 MAX_CHARS = 500
@@ -19,6 +22,46 @@ class WriterAgent:
         self.system_prompt = brand.system_prompt
         self.model = model or settings.WRITER_MODEL
         self.max_tokens = max_tokens or settings.WRITER_MAX_TOKENS
+
+    # Hook types the writer must rotate through. Left to the model, it always
+    # reached for #1 (income reveal) because the system prompt names it the
+    # strongest and hard-codes 447/94/60к — so 447 opened 11 of 40 posts. The
+    # pipeline now picks one, and the numbers hook is just one option of six.
+    HOOK_TYPES = (
+        "розкриття доходів (часовий проміжок + сума/кількість продажів)",
+        "мінімум→максимум: мала дія за малий час дала несподіваний результат",
+        "заборона/парадокс: 'не показуй нікому, збережи собі' + цінний список",
+        "маленький мілстоун + щира емоція, результат у термінах проблеми",
+        "ідентифікація: 'ВСІ ХТО [конкретна ситуація]' капсом у першому реченні",
+        "особиста історія: дієслово від 1 особи + вчора/сьогодні + деталь",
+        "пост-момент: одна конкретна сцена без жодної цифри й без висновку",
+        "пост-діалог: чиясь репліка і що ти насправді подумала",
+    )
+
+    @staticmethod
+    def _hook_block(hook: str | None) -> str:
+        if not hook:
+            return ""
+        return (
+            f"ТИП ХУКА ДЛЯ ЦЬОГО ПОСТА (обовʼязково саме цей): {hook}\n"
+            "не підміняй його іншим типом, навіть якщо інший здається сильнішим.\n"
+        )
+
+    @staticmethod
+    def _is_duplicate(text: str, openings: list[str]) -> bool:
+        """True when the draft opens too much like a recent post. The prompt-level
+        ban was ignored (447/94 kept opening posts days after the fix), so the
+        check is enforced in code."""
+        import difflib
+
+        first = (text or "").strip().split("\n")[0].strip().lower()
+        if not first:
+            return False
+        for old in openings:
+            o = old.strip().lower()
+            if difflib.SequenceMatcher(None, first[:70], o[:70]).ratio() > 0.6:
+                return True
+        return False
 
     @staticmethod
     def _anti_repeat(openings: list[str]) -> str:
@@ -52,7 +95,8 @@ class WriterAgent:
             )
         return "\nу цьому пості НЕ згадуй курс і НЕ додавай жодних посилань.\n"
 
-    def run(self, brief: dict, memory, sell: bool = False) -> str:
+    def run(self, brief: dict, memory, sell: bool = False,
+            hook: str | None = None) -> str:
         recent_topics = memory.get_recent_topics()
         best_post = memory.get_best_performing_post()
         recent_openings = memory.recent_openings()
@@ -77,6 +121,7 @@ class WriterAgent:
                 "й перекладай у свій контекст\n"
                 f"вже опубліковані теми (не повторювати): {recent_topics}\n"
                 f"{self._anti_repeat(recent_openings)}"
+                f"{self._hook_block(hook)}"
                 f"{self._sell_block(sell)}"
                 f"максимум {MAX_CHARS} символів, ціль {TARGET_CHARS}.\n"
                 "поверни лише текст поста. без пояснень. без лапок навколо тексту."
@@ -99,6 +144,7 @@ class WriterAgent:
                 f"кут: {brief['angle']}\n\n"
                 f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
                 f"{self._anti_repeat(recent_openings)}"
+                f"{self._hook_block(hook)}"
                 f"{self._sell_block(sell)}"
                 f"пост який зайшов найкраще за переглядами (орієнтир на стиль, не копіювати): {best_post}\n\n"
                 f"важливо: тему “{brief['keyword']}” дослівно в пості не називати. "
@@ -128,6 +174,20 @@ class WriterAgent:
                 ],
             )
 
+        # Enforce non-repetition in code: the prompt-level ban kept being ignored.
+        if self._is_duplicate(text, recent_openings):
+            logger.info("draft repeated a recent opening — regenerating")
+            text = self._call(client, [
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": text},
+                {"role": "user", "content": (
+                    "цей зачин уже був у недавньому пості. перепиши пост з "
+                    "ЦІЛКОМ іншим входом: інша сцена, інша деталь, інші цифри "
+                    "або зовсім без цифр. тему й голос збережи. "
+                    "поверни лише текст поста."
+                )},
+            ])
+
         text = self._deslop(client, text)
 
         # Last resort: hard-trim on a paragraph/line boundary so we never 400.
@@ -138,7 +198,7 @@ class WriterAgent:
         return self._strip_dividers(text)
 
     def run_chain(self, brief: dict, memory, max_parts: int | None = None,
-                  sell: bool = False) -> list[str]:
+                  sell: bool = False, hook: str | None = None) -> list[str]:
         """Write a checklist / mini-guide as a short post chain. Returns the parts
         (each <=500 chars). The pipeline publishes them as a Threads reply-chain.
         Length is capped by settings.CHAIN_MAX_PARTS (3 on Vercel, more on a VPS)."""
@@ -161,6 +221,7 @@ class WriterAgent:
             f"кут: {brief['angle']}\n\n"
             f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
             f"{self._anti_repeat(recent_openings)}"
+            f"{self._hook_block(hook)}"
             f"{self._sell_block(sell)}\n"
             "формат ланцюжка:\n"
             f"- РІВНО {max_parts} постів (1 хук + {steps} пункти), не більше.\n"

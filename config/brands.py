@@ -232,6 +232,10 @@ class Brand:
     # this session is logged in as, so each commenting brand needs its own.
     # Empty = fall back to the scraper session (parser/scout_session.json).
     session_file: str = ""
+    # Selling is decided in code, not left to the model's mood: leaving the
+    # bridge "optional" in the prompt produced a link in 1 of 40 posts (2%).
+    sales_probability: float = 0.0   # share of posts that MUST carry the CTA
+    product_url: str = ""            # the link those posts end with
 
 
 TALA = Brand(
@@ -250,6 +254,8 @@ TALA = Brand(
     comment_min_gap_minutes=settings.TALA_COMMENT_MIN_GAP_MINUTES,
     image_manifest_url=settings.TALA_IMAGE_MANIFEST_URL,
     image_probability=settings.TALA_IMAGE_PROBABILITY,
+    sales_probability=settings.TALA_SALES_PROBABILITY,
+    product_url="https://digital.blacksea.in.ua/l/fah/FIRST10",
 )
 
 BLACKSEA = Brand(
@@ -289,6 +295,8 @@ DENYS = Brand(
     image_manifest_url=settings.DENYS_IMAGE_MANIFEST_URL,
     image_probability=settings.DENYS_IMAGE_PROBABILITY,
     session_file=settings.DENYS_SESSION_FILE,
+    sales_probability=settings.DENYS_SALES_PROBABILITY,
+    product_url="https://den.blacksea.in.ua/l/first-sell",
 )
 
 

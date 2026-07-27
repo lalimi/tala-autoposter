@@ -51,10 +51,16 @@ def run_pipeline(
     brief = ParserAgent(brand).run(topic)
     writer = WriterAgent(brand)
 
+    # Whether this post sells is decided HERE, not by the model: as an optional
+    # nudge in the prompt the CTA showed up in 1 of 40 posts (2%).
+    sell = bool(brand.product_url) and random.random() < brand.sales_probability
+    if sell:
+        logger.info("[%s] sales post (CTA required)", brand.key)
+
     # Chain vs single is brand-tuned (Tala leans chains, blacksea leans singles).
     parts = None
     if random.random() < brand.chain_probability:
-        parts = writer.run_chain(brief, memory)
+        parts = writer.run_chain(brief, memory, sell=sell)
         if len(parts) < 2:
             parts = None  # too short to be a chain -> fall back to a single post
 
@@ -62,7 +68,7 @@ def run_pipeline(
         post_text = "\n\n---\n\n".join(parts)
         fmt = "chain"
     else:
-        post_text = writer.run(brief, memory)
+        post_text = writer.run(brief, memory, sell=sell)
         fmt = "single"
 
     row_id = memory.save_post(topic, fmt, post_text, None, "draft")

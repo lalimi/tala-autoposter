@@ -20,10 +20,42 @@ class WriterAgent:
         self.model = model or settings.WRITER_MODEL
         self.max_tokens = max_tokens or settings.WRITER_MAX_TOKENS
 
-    def run(self, brief: dict, memory) -> str:
+    @staticmethod
+    def _anti_repeat(openings: list[str]) -> str:
+        """Feeding 12 FULL recent posts was a wall the model ignored — openings
+        repeated verbatim and the same three numbers (447/94/60к) carried 8-11 of
+        40 posts. Show just the openings and ban reusing them."""
+        if not openings:
+            return ""
+        listed = "\n".join(f"  - {o}" for o in openings[:20])
+        return (
+            "ЗАЧИНИ ОСТАННІХ ПОСТІВ (заборонено починати схоже, заборонено "
+            f"повторювати ці ж цифри й факти в хуку):\n{listed}\n"
+            "візьми ІНШИЙ вхід: інша ситуація, інша деталь, інша цифра або взагалі "
+            "без цифри. не кожен пост про дохід.\n"
+        )
+
+    def _sell_block(self, sell: bool) -> str:
+        """Selling is decided by the pipeline, not by the model's mood: as an
+        optional suggestion in the system prompt it produced a link in 2% of
+        posts. Here it is either mandatory or forbidden for this post."""
+        if not self.brand.product_url:
+            return ""
+        if sell:
+            return (
+                "\nЦЕ ПРОДАЖНИЙ ПОСТ (обовʼязково):\n"
+                "- спочатку живий пост по темі, як завжди. історія/цифра/деталь\n"
+                "- потім ОДИН короткий рядок-місток від себе до продукту, у твоєму "
+                "голосі, без пафосу й без знаків оклику\n"
+                f"- останнім рядком саме це посилання: {self.brand.product_url}\n"
+                "- не перетворюй пост на рекламу: місток це фінал, а не суть\n"
+            )
+        return "\nу цьому пості НЕ згадуй курс і НЕ додавай жодних посилань.\n"
+
+    def run(self, brief: dict, memory, sell: bool = False) -> str:
         recent_topics = memory.get_recent_topics()
         best_post = memory.get_best_performing_post()
-        recent_texts = memory.recent_post_texts()
+        recent_openings = memory.recent_openings()
 
         seed = brief.get("seed")  # a real high-reach post to adapt, if scraped
         if seed:
@@ -44,7 +76,8 @@ class WriterAgent:
                 "- якщо джерело англійською чи про іншу нішу, бери лише механіку хука "
                 "й перекладай у свій контекст\n"
                 f"вже опубліковані теми (не повторювати): {recent_topics}\n"
-                f"останні пости (не повторюй їх): {recent_texts}\n"
+                f"{self._anti_repeat(recent_openings)}"
+                f"{self._sell_block(sell)}"
                 f"максимум {MAX_CHARS} символів, ціль {TARGET_CHARS}.\n"
                 "поверни лише текст поста. без пояснень. без лапок навколо тексту."
             )
@@ -65,7 +98,8 @@ class WriterAgent:
                 f"{peer_line}"
                 f"кут: {brief['angle']}\n\n"
                 f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
-                f"останні пости (НЕ повторюй ці історії, деталі й формулювання): {recent_texts}\n"
+                f"{self._anti_repeat(recent_openings)}"
+                f"{self._sell_block(sell)}"
                 f"пост який зайшов найкраще за переглядами (орієнтир на стиль, не копіювати): {best_post}\n\n"
                 f"важливо: тему “{brief['keyword']}” дослівно в пості не називати. "
                 "покажи її через конкретну ситуацію, деталь або цифру.\n"
@@ -103,14 +137,15 @@ class WriterAgent:
         # sometimes adds one); turn it into a plain paragraph break.
         return self._strip_dividers(text)
 
-    def run_chain(self, brief: dict, memory, max_parts: int | None = None) -> list[str]:
+    def run_chain(self, brief: dict, memory, max_parts: int | None = None,
+                  sell: bool = False) -> list[str]:
         """Write a checklist / mini-guide as a short post chain. Returns the parts
         (each <=500 chars). The pipeline publishes them as a Threads reply-chain.
         Length is capped by settings.CHAIN_MAX_PARTS (3 on Vercel, more on a VPS)."""
         max_parts = max_parts or settings.CHAIN_MAX_PARTS
         steps = max(1, max_parts - 1)  # parts after the hook
         recent_topics = memory.get_recent_topics()
-        recent_texts = memory.recent_post_texts()
+        recent_openings = memory.recent_openings()
         peer_line = ""
         if brief.get("peer_signals"):
             peer_line = (
@@ -125,7 +160,8 @@ class WriterAgent:
             f"{peer_line}"
             f"кут: {brief['angle']}\n\n"
             f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
-            f"останні пости (НЕ повторюй ці історії, деталі й формулювання): {recent_texts}\n\n"
+            f"{self._anti_repeat(recent_openings)}"
+            f"{self._sell_block(sell)}\n"
             "формат ланцюжка:\n"
             f"- РІВНО {max_parts} постів (1 хук + {steps} пункти), не більше.\n"
             "- 1-й пост: хук-обіцянка — що людина отримає, чому варто зберегти. коротко. "

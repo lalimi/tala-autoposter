@@ -47,6 +47,12 @@ WRITER_MAX_TOKENS = int(_env("WRITER_MAX_TOKENS", "800") or "800")
 # only if you switch to a thinking model and want it to plan first.
 WRITER_THINKING_BUDGET = int(_env("WRITER_THINKING_BUDGET", "0") or "0")
 
+# Share of posts that MUST end with a product CTA + link. Left to the prompt as
+# "optional", the model added the bridge in 1 of 40 posts (2%) — so the pipeline
+# now decides and the writer is told it's mandatory for that post.
+TALA_SALES_PROBABILITY = float(_env("TALA_SALES_PROBABILITY", "0.3") or "0.3")
+DENYS_SALES_PROBABILITY = float(_env("DENYS_SALES_PROBABILITY", "0.3") or "0.3")
+
 # Share of runs that publish a multi-post CHAIN (checklist / guide) rather than
 # a single post. Tala wants mostly chains, occasional singles. Tunable via env.
 CHAIN_PROBABILITY = float(_env("CHAIN_PROBABILITY", "0.9") or "0.9")

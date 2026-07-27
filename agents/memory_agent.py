@@ -35,6 +35,18 @@ class MemoryAgent:
     def recent_post_texts(self, limit: int = 12) -> list[str]:
         return store.recent_post_texts(prefix=self.prefix, limit=limit)
 
+    def recent_openings(self, limit: int = 25) -> list[str]:
+        """Just the first line of each recent post. Feeding the writer 12 FULL
+        posts was a wall of text it ignored — and openings are exactly what was
+        repeating verbatim ("23 хвилини на цикл самознищення" three times)."""
+        seen, out = set(), []
+        for t in store.recent_post_texts(prefix=self.prefix, limit=limit):
+            first = (t or "").strip().split("\n")[0].strip()[:90]
+            if first and first not in seen:
+                seen.add(first)
+                out.append(first)
+        return out
+
     def save_post(self, topic, fmt, text, postiz_id=None, status="draft") -> int:
         return store.save_post(topic, fmt, text, status, prefix=self.prefix)
 

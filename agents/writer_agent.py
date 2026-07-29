@@ -58,6 +58,17 @@ class WriterAgent:
         re.IGNORECASE,
     )
     _PERCENT_RE = re.compile(r"\d+\s*(?:%|відсот)")
+    # Sales platforms that compete with BlackSea — a BlackSea-owned persona must
+    # not recommend them. The first live SoloHub post advised "gumroad для
+    # оплати", so this is checked in code, not left to the prompt.
+    _RIVAL_RE = re.compile(
+        r"\b(gumroad|payhip|lemonsqueezy|lemon squeezy|teachable|sendowl|"
+        r"podia|thinkific|kajabi|patreon|etsy)\b", re.IGNORECASE)
+
+    @classmethod
+    def _names_rival(cls, text: str) -> str | None:
+        m = cls._RIVAL_RE.search(text or "")
+        return m.group(0) if m else None
 
     @classmethod
     def _has_money_claim(cls, text: str) -> str | None:
@@ -218,6 +229,23 @@ class WriterAgent:
                     "поверни лише текст поста."
                 )},
             ])
+
+        # A BlackSea-owned persona must not advertise a competing storefront.
+        if getattr(self.brand, "forbid_rival_platforms", False):
+            rival = self._names_rival(text)
+            if rival:
+                logger.info("draft named a rival platform (%r) — regenerating", rival)
+                text = self._call(client, [
+                    {"role": "user", "content": user_message},
+                    {"role": "assistant", "content": text},
+                    {"role": "user", "content": (
+                        f"у тексті згадана конкурентна платформа «{rival}». "
+                        "перепиши пост без неї. якщо йдеться про приймання "
+                        "оплати чи де продавати — це blacksea. решту "
+                        "інструментів (notion, ai, no-code) можна лишити. "
+                        "поверни лише текст поста."
+                    )},
+                ])
 
         # Personas without a real trading history must not invent figures.
         if getattr(self.brand, "forbid_money_claims", False):

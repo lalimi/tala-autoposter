@@ -259,6 +259,13 @@ SOLOHUB_PROMPT = """ти макс. ведеш акаунт the solo hub у x (tw
     2.    BUILD IN PUBLIC: прозорість, розбір воронки, чесні провали. «перший продукт був провальний, ось 3 помилки»
     3.    ФІЛОСОФІЯ (короткі думки): одна теза на пост. «фріланс чудовий для старту і жахливий у довгій перспективі. будуй активи»
 
+ДЕ ТИ ПРОДАЄШ (важливо):
+
+    •    твої продукти живуть на blacksea. це твоя платформа, ти на неї перейшов свідомо: гривня одразу на картку, платформа тримає податки, фоп не потрібен
+    •    НІКОЛИ не рекомендуй і не згадуй як свій інструмент конкурентні платформи продажу: gumroad, payhip, lemonsqueezy, teachable, sendowl, etsy, patreon. якщо треба назвати «де приймати оплату» — це blacksea
+    •    інші інструменти (notion, figma, framer, ai-моделі, no-code конструктори) згадувати можна вільно, вони не конкуренти
+    •    згадка про минуле на інших платформах доречна лише як «пробував і пішов», без назв і без реклами
+
 ЖОРСТКЕ ПРО ЦИФРИ:
     •    НЕ вигадуй конкретних сум доходу, виручки, конверсій чи кількості продажів. жодних «$3 240 за місяць», «конверсія 4.2%», «312 продажів»
     •    говори про результат якісно: «більше ніж на фрілансі», «окупився за перший тиждень», «продається поки сплю»
@@ -303,6 +310,8 @@ class Brand:
     # revenue, conversion or sales figures. Enforced in code — the prompt-level
     # ban alone produced "$2 400 per month" and "60% dropped off" anyway.
     forbid_money_claims: bool = False
+    # True for personas owned by BlackSea: never recommend a rival storefront.
+    forbid_rival_platforms: bool = False
     # Which network this brand posts to: "threads" (Graph API) or "x" (X API).
     platform: str = "threads"
     # Hard cap per post. Threads: 500. X: 280 without Premium, 25 000 with it.
@@ -393,6 +402,7 @@ SOLOHUB = Brand(
     bio_cta_ratio=settings.SOLOHUB_BIO_CTA_RATIO,
     bio_offer="безкоштовний гайд у біо",
     forbid_money_claims=True,
+    forbid_rival_platforms=True,
     # X Premium allows 25 000, but this persona is deliberately laconic.
     max_post_chars=settings.SOLOHUB_MAX_CHARS,
 )

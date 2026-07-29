@@ -54,8 +54,12 @@ def run_pipeline(
     # Whether this post sells is decided HERE, not by the model: as an optional
     # nudge in the prompt the CTA showed up in 1 of 40 posts (2%).
     sell = bool(brand.product_url) and random.random() < brand.sales_probability
+    # Point at the bio instead of pasting a URL for most sales posts on X: a post
+    # with a link costs ~13x more there and gets less reach.
+    via_bio = sell and random.random() < brand.bio_cta_ratio
     if sell:
-        logger.info("[%s] sales post (CTA required)", brand.key)
+        logger.info("[%s] sales post (CTA %s)", brand.key,
+                    "-> bio" if via_bio else "-> link")
 
     # Pick the hook type here too: left to the model it always chose the income
     # reveal, so 447/94/60к opened most posts. Avoid the ones used most recently.
@@ -69,7 +73,7 @@ def run_pipeline(
     # Chain vs single is brand-tuned (Tala leans chains, blacksea leans singles).
     parts = None
     if random.random() < brand.chain_probability:
-        parts = writer.run_chain(brief, memory, sell=sell, hook=hook)
+        parts = writer.run_chain(brief, memory, sell=sell, hook=hook, via_bio=via_bio)
         if len(parts) < 2:
             parts = None  # too short to be a chain -> fall back to a single post
 
@@ -77,7 +81,7 @@ def run_pipeline(
         post_text = "\n\n---\n\n".join(parts)
         fmt = "chain"
     else:
-        post_text = writer.run(brief, memory, sell=sell, hook=hook)
+        post_text = writer.run(brief, memory, sell=sell, hook=hook, via_bio=via_bio)
         fmt = "single"
 
     row_id = memory.save_post(topic, fmt, post_text, None, "draft")

@@ -1,0 +1,13 @@
+[Unit]
+Description=solohub (X) post tick — evening window, ~3-4 posts/day
+
+[Timer]
+# Same evening bias that measured 6-9x better on Threads; X's peak is broadly
+# similar. Self-throttle (SOLOHUB_MIN_GAP_MINUTES) thins these checks.
+OnCalendar=*-*-* 15..22:37:00
+RandomizedDelaySec=500
+Persistent=true
+Unit=tala@post-solohub.service
+
+[Install]
+WantedBy=timers.target

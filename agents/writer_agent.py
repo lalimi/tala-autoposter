@@ -82,12 +82,21 @@ class WriterAgent:
             "без цифри. не кожен пост про дохід.\n"
         )
 
-    def _sell_block(self, sell: bool) -> str:
+    def _sell_block(self, sell: bool, via_bio: bool = False) -> str:
         """Selling is decided by the pipeline, not by the model's mood: as an
         optional suggestion in the system prompt it produced a link in 2% of
         posts. Here it is either mandatory or forbidden for this post."""
         if not self.brand.product_url:
             return ""
+        if sell and via_bio:
+            offer = self.brand.bio_offer or "продукт у біо"
+            return (
+                "\nЦЕ ПРОДАЖНИЙ ПОСТ, АЛЕ БЕЗ ПОСИЛАННЯ (обовʼязково):\n"
+                "- спочатку корисний пост по темі, як завжди\n"
+                f"- у фіналі один короткий рядок що веде в біо ({offer}), "
+                "у твоєму голосі, буденно\n"
+                "- URL у текст НЕ вставляй, жодних http. тільки згадка що це в біо\n"
+            )
         if sell:
             return (
                 "\nЦЕ ПРОДАЖНИЙ ПОСТ (обовʼязково):\n"
@@ -100,7 +109,7 @@ class WriterAgent:
         return "\nу цьому пості НЕ згадуй курс і НЕ додавай жодних посилань.\n"
 
     def run(self, brief: dict, memory, sell: bool = False,
-            hook: str | None = None) -> str:
+            hook: str | None = None, via_bio: bool = False) -> str:
         recent_topics = memory.get_recent_topics()
         best_post = memory.get_best_performing_post()
         recent_openings = memory.recent_openings()
@@ -126,7 +135,7 @@ class WriterAgent:
                 f"вже опубліковані теми (не повторювати): {recent_topics}\n"
                 f"{self._anti_repeat(recent_openings)}"
                 f"{self._hook_block(hook)}"
-                f"{self._sell_block(sell)}"
+                f"{self._sell_block(sell, via_bio)}"
                 f"максимум {self.max_chars} символів, ціль {self.target_chars}.\n"
                 "поверни лише текст поста. без пояснень. без лапок навколо тексту."
             )
@@ -149,7 +158,7 @@ class WriterAgent:
                 f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
                 f"{self._anti_repeat(recent_openings)}"
                 f"{self._hook_block(hook)}"
-                f"{self._sell_block(sell)}"
+                f"{self._sell_block(sell, via_bio)}"
                 f"пост який зайшов найкраще за переглядами (орієнтир на стиль, не копіювати): {best_post}\n\n"
                 f"важливо: тему “{brief['keyword']}” дослівно в пості не називати. "
                 "покажи її через конкретну ситуацію, деталь або цифру.\n"
@@ -202,7 +211,8 @@ class WriterAgent:
         return self._strip_dividers(text)
 
     def run_chain(self, brief: dict, memory, max_parts: int | None = None,
-                  sell: bool = False, hook: str | None = None) -> list[str]:
+                  sell: bool = False, hook: str | None = None,
+                  via_bio: bool = False) -> list[str]:
         """Write a checklist / mini-guide as a short post chain. Returns the parts
         (each <=500 chars). The pipeline publishes them as a Threads reply-chain.
         Length is capped by settings.CHAIN_MAX_PARTS (3 on Vercel, more on a VPS)."""
@@ -226,7 +236,7 @@ class WriterAgent:
             f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
             f"{self._anti_repeat(recent_openings)}"
             f"{self._hook_block(hook)}"
-            f"{self._sell_block(sell)}\n"
+            f"{self._sell_block(sell, via_bio)}\n"
             "формат ланцюжка:\n"
             f"- РІВНО {max_parts} постів (1 хук + {steps} пункти), не більше.\n"
             "- 1-й пост: хук-обіцянка — що людина отримає, чому варто зберегти. коротко. "

@@ -63,6 +63,16 @@ BLACKSEA_CHAIN_PROBABILITY = float(
     _env("BLACKSEA_CHAIN_PROBABILITY", "0.2") or "0.2"
 )
 
+# @TheSoloHub (X): content mix is ~40% how-to threads, so chains are common.
+SOLOHUB_CHAIN_PROBABILITY = float(_env("SOLOHUB_CHAIN_PROBABILITY", "0.45") or "0.45")
+SOLOHUB_MIN_GAP_MINUTES = int(_env("SOLOHUB_MIN_GAP_MINUTES", "240") or "240")
+SOLOHUB_SALES_PROBABILITY = float(_env("SOLOHUB_SALES_PROBABILITY", "0.3") or "0.3")
+# Most sales posts point at the bio: on X a post with a URL costs ~$0.20 vs
+# ~$0.015, and links get less reach. The lead magnet lives in the bio anyway.
+SOLOHUB_BIO_CTA_RATIO = float(_env("SOLOHUB_BIO_CTA_RATIO", "0.7") or "0.7")
+# Laconic by design; X Premium would allow 25 000.
+SOLOHUB_MAX_CHARS = int(_env("SOLOHUB_MAX_CHARS", "400") or "400")
+
 # @denys — mostly short sarcastic single posts (curilka style), rare tips chain.
 DENYS_CHAIN_PROBABILITY = float(
     _env("DENYS_CHAIN_PROBABILITY", "0.15") or "0.15"

@@ -134,7 +134,10 @@ def run_metrics(brand: Brand = TALA, **_) -> int:
     Returns how many were updated. Never raises on a single post's failure."""
     import store
 
-    from agents.metrics_agent import MetricsAgent
+    if brand.platform == "x":
+        from agents.x_metrics_agent import XMetricsAgent as MetricsAgent
+    else:
+        from agents.metrics_agent import MetricsAgent
 
     posts = store.posts_needing_metrics(brand.table_prefix)
     if not posts:

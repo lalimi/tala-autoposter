@@ -19,6 +19,7 @@ case "${1:-}" in
   metrics-tala)     exec "$PY" main.py --brand tala     --metrics ;;
   metrics-blacksea) exec "$PY" main.py --brand blacksea --metrics ;;
   metrics-denys)    exec "$PY" main.py --brand denys    --metrics ;;
+  metrics-solohub)  exec "$PY" main.py --brand solohub  --metrics ;;
   update)
     # Force the repo to match remote (immune to local mode/file changes; .env is
     # git-ignored so it's untouched), then re-sync systemd units so unit/timer
@@ -30,7 +31,7 @@ case "${1:-}" in
         > /etc/systemd/system/tala@.service 2>/dev/null || true
       cp "$APP"/deploy/systemd/tala@*.timer /etc/systemd/system/ 2>/dev/null || true
       systemctl daemon-reload 2>/dev/null || true
-      for t in post-tala post-blacksea post-denys post-solohub comment-tala comment-denys metrics-tala metrics-blacksea metrics-denys refresh update; do
+      for t in post-tala post-blacksea post-denys post-solohub comment-tala comment-denys metrics-tala metrics-blacksea metrics-denys metrics-solohub refresh update; do
         systemctl enable --now "tala@$t.timer" >/dev/null 2>&1 || true
       done
     fi

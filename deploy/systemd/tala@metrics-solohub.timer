@@ -1,0 +1,10 @@
+[Unit]
+Description=fetch X metrics for solohub posts (>=24h old)
+
+[Timer]
+OnCalendar=*-*-* *:58:00
+Persistent=true
+Unit=tala@metrics-solohub.service
+
+[Install]
+WantedBy=timers.target

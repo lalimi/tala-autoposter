@@ -22,6 +22,10 @@ class WriterAgent:
         self.system_prompt = brand.system_prompt
         self.model = model or settings.WRITER_MODEL
         self.max_tokens = max_tokens or settings.WRITER_MAX_TOKENS
+        # Per-brand so an X account without Premium (280 chars) can't silently
+        # produce posts the publisher will reject. Threads stays at 500.
+        self.max_chars = getattr(brand, "max_post_chars", MAX_CHARS) or MAX_CHARS
+        self.target_chars = max(80, int(self.max_chars * 0.92))
 
     # Hook types the writer must rotate through. Left to the model, it always
     # reached for #1 (income reveal) because the system prompt names it the
@@ -123,7 +127,7 @@ class WriterAgent:
                 f"{self._anti_repeat(recent_openings)}"
                 f"{self._hook_block(hook)}"
                 f"{self._sell_block(sell)}"
-                f"максимум {MAX_CHARS} символів, ціль {TARGET_CHARS}.\n"
+                f"максимум {self.max_chars} символів, ціль {self.target_chars}.\n"
                 "поверни лише текст поста. без пояснень. без лапок навколо тексту."
             )
         else:
@@ -149,7 +153,7 @@ class WriterAgent:
                 f"пост який зайшов найкраще за переглядами (орієнтир на стиль, не копіювати): {best_post}\n\n"
                 f"важливо: тему “{brief['keyword']}” дослівно в пості не називати. "
                 "покажи її через конкретну ситуацію, деталь або цифру.\n"
-                f"максимум {MAX_CHARS} символів, ціль {TARGET_CHARS}.\n"
+                f"максимум {self.max_chars} символів, ціль {self.target_chars}.\n"
                 "поверни лише текст поста. без пояснень. без лапок навколо тексту."
             )
 
@@ -157,7 +161,7 @@ class WriterAgent:
         text = self._call(client, [{"role": "user", "content": user_message}])
 
         # Safety net: the model occasionally overshoots the 500-char cap.
-        if len(text) > MAX_CHARS:
+        if len(text) > self.max_chars:
             text = self._call(
                 client,
                 [
@@ -166,7 +170,7 @@ class WriterAgent:
                     {
                         "role": "user",
                         "content": (
-                            f"задовгий ({len(text)} символів). скороти до {TARGET_CHARS} "
+                            f"задовгий ({len(text)} символів). скороти до {self.target_chars} "
                             "символів максимум. збережи голос, головну деталь і цифри. "
                             "поверни лише текст поста."
                         ),
@@ -191,7 +195,7 @@ class WriterAgent:
         text = self._deslop(client, text)
 
         # Last resort: hard-trim on a paragraph/line boundary so we never 400.
-        if len(text) > MAX_CHARS:
+        if len(text) > self.max_chars:
             text = self._trim(text)
         # A single post must never carry a chain-style "---" divider (the model
         # sometimes adds one); turn it into a plain paragraph break.
@@ -380,13 +384,12 @@ class WriterAgent:
         text = re.sub(r"\n{3,}", "\n\n", text)
         return text.strip()
 
-    @staticmethod
-    def _trim(text: str) -> str:
-        if len(text) <= MAX_CHARS:
+    def _trim(self, text: str) -> str:
+        if len(text) <= self.max_chars:
             return text
-        window = text[:MAX_CHARS]
+        window = text[:self.max_chars]
         for sep in ("\n\n", "\n", ". ", " "):
             cut = window.rfind(sep)
-            if cut > MAX_CHARS * 0.6:  # don't trim away more than ~40%
+            if cut > self.max_chars * 0.6:  # don't trim away more than ~40%
                 return window[:cut].rstrip()
         return window.rstrip()

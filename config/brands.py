@@ -236,6 +236,10 @@ class Brand:
     # bridge "optional" in the prompt produced a link in 1 of 40 posts (2%).
     sales_probability: float = 0.0   # share of posts that MUST carry the CTA
     product_url: str = ""            # the link those posts end with
+    # Which network this brand posts to: "threads" (Graph API) or "x" (X API).
+    platform: str = "threads"
+    # Hard cap per post. Threads: 500. X: 280 without Premium, 25 000 with it.
+    max_post_chars: int = 500
 
 
 TALA = Brand(

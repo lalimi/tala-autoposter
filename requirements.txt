@@ -3,3 +3,6 @@
 anthropic==0.105.2
 requests>=2.31
 python-dotenv>=1.0
+
+# X (Twitter) posting via tweepy — only needed for brands with platform="x".
+tweepy>=4.14

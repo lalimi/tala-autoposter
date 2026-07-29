@@ -88,7 +88,12 @@ def run_pipeline(
         logger.info("[%s] publish skipped (test/dry-run)", brand.key)
         return post_text
 
-    from agents.publisher_agent import PublisherAgent
+    # Publisher depends on the network the brand posts to; both expose the same
+    # publish()/publish_thread() interface.
+    if brand.platform == "x":
+        from agents.x_publisher import XPublisher as PublisherAgent
+    else:
+        from agents.publisher_agent import PublisherAgent
 
     # Maybe attach a random image from the brand's manifest (viral_dna: images
     # lift reach ~2.8x). Best-effort — a missing/broken manifest posts text-only.

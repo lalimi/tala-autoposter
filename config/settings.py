@@ -141,16 +141,15 @@ OWN_HANDLES = {
     if h.strip()
 }
 
-# X (Twitter) credentials, per brand: X_<BRAND>_API_KEY / _API_SECRET /
-# _ACCESS_TOKEN / _ACCESS_SECRET. OAuth 1.0a user context — POST /2/tweets
-# rejects app-only bearer tokens, and these tokens don't expire.
-def x_credentials(brand_key: str) -> dict:
+# X (Twitter), per brand: X_<BRAND>_CLIENT_ID / X_<BRAND>_CLIENT_SECRET.
+# OAuth 2.0 user context — POST /2/tweets rejects app-only bearer tokens. The
+# access/refresh tokens themselves live in Supabase (x_tokens), because the
+# refresh token rotates on every refresh; see agents/x_token_manager.
+def x_client_credentials(brand_key: str) -> dict:
     p = f"X_{brand_key.upper()}_"
     return {
-        "api_key": _env(p + "API_KEY"),
-        "api_secret": _env(p + "API_SECRET"),
-        "access_token": _env(p + "ACCESS_TOKEN"),
-        "access_secret": _env(p + "ACCESS_SECRET"),
+        "client_id": _env(p + "CLIENT_ID"),
+        "client_secret": _env(p + "CLIENT_SECRET"),
     }
 
 

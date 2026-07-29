@@ -51,6 +51,24 @@ class WriterAgent:
             "не підміняй його іншим типом, навіть якщо інший здається сильнішим.\n"
         )
 
+    # Currency amounts and percentages — the shapes an invented business claim
+    # takes. Process numbers ("4-5 годин", "2 місяці", "15 хвилин") don't match.
+    _MONEY_RE = re.compile(
+        r"[$€£₴]\s?\d|\d[\d\s.,]*\s*(?:грн|гривень|долар\w*|usd|eur|\$|₴|к\b|тис)",
+        re.IGNORECASE,
+    )
+    _PERCENT_RE = re.compile(r"\d+\s*(?:%|відсот)")
+
+    @classmethod
+    def _has_money_claim(cls, text: str) -> str | None:
+        """Return the offending fragment, or None. Used only for brands whose
+        persona has no real figures to quote."""
+        for rx in (cls._MONEY_RE, cls._PERCENT_RE):
+            m = rx.search(text or "")
+            if m:
+                return m.group(0)
+        return None
+
     @staticmethod
     def _is_duplicate(text: str, openings: list[str]) -> bool:
         """True when the draft opens too much like a recent post. The prompt-level
@@ -200,6 +218,26 @@ class WriterAgent:
                     "поверни лише текст поста."
                 )},
             ])
+
+        # Personas without a real trading history must not invent figures.
+        if getattr(self.brand, "forbid_money_claims", False):
+            bad = self._has_money_claim(text)
+            if bad:
+                logger.info("draft invented a figure (%r) — regenerating", bad)
+                text = self._call(client, [
+                    {"role": "user", "content": user_message},
+                    {"role": "assistant", "content": text},
+                    {"role": "user", "content": (
+                        f"у тексті є вигадана цифра: «{bad}». перепиши пост "
+                        "БЕЗ будь-яких сум, відсотків, конверсій і кількості "
+                        "продажів. результат описуй якісно. цифри дозволені лише "
+                        "про час і процес (години, місяці, кроки). "
+                        "поверни лише текст поста."
+                    )},
+                ])
+                still = self._has_money_claim(text)
+                if still:
+                    logger.warning("still contains a figure (%r) after retry", still)
 
         text = self._deslop(client, text)
 

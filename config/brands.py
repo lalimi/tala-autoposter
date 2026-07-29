@@ -299,6 +299,10 @@ class Brand:
     # ~$0.015, and the algorithm also suppresses outbound links.
     bio_cta_ratio: float = 0.0
     bio_offer: str = ""              # what the bio link actually gives
+    # True for personas with no real trading history: the writer must not invent
+    # revenue, conversion or sales figures. Enforced in code — the prompt-level
+    # ban alone produced "$2 400 per month" and "60% dropped off" anyway.
+    forbid_money_claims: bool = False
     # Which network this brand posts to: "threads" (Graph API) or "x" (X API).
     platform: str = "threads"
     # Hard cap per post. Threads: 500. X: 280 without Premium, 25 000 with it.
@@ -388,6 +392,7 @@ SOLOHUB = Brand(
     platform="x",
     bio_cta_ratio=settings.SOLOHUB_BIO_CTA_RATIO,
     bio_offer="безкоштовний гайд у біо",
+    forbid_money_claims=True,
     # X Premium allows 25 000, but this persona is deliberately laconic.
     max_post_chars=settings.SOLOHUB_MAX_CHARS,
 )

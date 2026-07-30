@@ -118,7 +118,7 @@ def _parse_thread_item(item: dict) -> dict | None:
             )
             or 0,
             "url": (
-                f"https://www.threads.net/@{username}/post/{code}" if code else ""
+                f"https://www.threads.com/@{username}/post/{code}" if code else ""
             ),
         }
     except Exception:
@@ -139,7 +139,11 @@ async def _load_session(context) -> bool:
 
 
 async def _search_keyword(keyword: str, context) -> list[dict]:
-    url = f"https://www.threads.net/search/?q={quote(keyword)}&serp_type=default"
+    # threads.NET drops the query on redirect and lands on the home feed, so the
+    # scraper was reading global recommendations instead of search results — that
+    # is why "ритуали ранку" returned Willow Smith and "digital product launch"
+    # returned Nigel Farage, in both languages. threads.COM keeps the query.
+    url = f"https://www.threads.com/search/?q={quote(keyword)}&serp_type=default"
     page = await context.new_page()
     try:
         # domcontentloaded, not networkidle: Threads keeps long-lived
@@ -159,7 +163,7 @@ async def _search_keyword(keyword: str, context) -> list[dict]:
 
 
 async def _scrape_profile(username: str, context) -> list[dict]:
-    url = f"https://www.threads.net/@{username}"
+    url = f"https://www.threads.com/@{username}"
     page = await context.new_page()
     try:
         await page.goto(url, timeout=30000, wait_until="domcontentloaded")
@@ -188,7 +192,7 @@ def _clean_text(s: str) -> str:
 def _to_contract(post: dict, tag: str) -> dict:
     return {
         "text": _clean_text(post["text"]),
-        "source": post.get("username") or "threads.net",
+        "source": post.get("username") or "threads.com",
         "url": post.get("url", ""),
         "keyword": tag,
         "likes": post.get("likes", 0),
@@ -296,7 +300,7 @@ async def _do_login() -> None:
             viewport={"width": 1280, "height": 900}, user_agent=UA
         )
         page = await context.new_page()
-        await page.goto("https://www.threads.net/login")
+        await page.goto("https://www.threads.com/login")
         input("\n⏳ Logged in? Press Enter to save the session...")
         cookies = await context.cookies()
         sf = _session_file()

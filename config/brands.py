@@ -289,12 +289,12 @@ class Brand:
     seed_token_attr: str     # settings attr holding the first-run Threads token
     chain_probability: float # share of runs that publish a multi-post chain
     min_gap_minutes: int     # self-throttle: min minutes between published posts
-    # Upper bound of the randomised gap. The pipeline draws a fresh value in
-    # [min_gap_minutes, max_gap_minutes] before every tick, so spacing never
-    # lands on the same rhythm two days in a row.
-    max_gap_minutes: int = 0
     comments_enabled: bool   # whether this brand replies under other people's posts
     comment_min_gap_minutes: int  # self-throttle for comments
+    # Upper bound of the randomised post gap. The pipeline draws a fresh value in
+    # [min_gap_minutes, max_gap_minutes] each tick so spacing never settles into
+    # a recognisable rhythm. 0 falls back to min_gap_minutes.
+    max_gap_minutes: int = 0
     image_manifest_url: str = ""   # public URL listing image URLs (empty = text-only)
     image_probability: float = 0.0  # chance a post gets a random image from the manifest
     # Browser cookie jar used when commenting: replies are published by whoever

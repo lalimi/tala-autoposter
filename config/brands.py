@@ -284,7 +284,6 @@ class Brand:
     key: str                 # short id, e.g. "tala" / "blacksea"
     table_prefix: str        # Supabase table prefix: {prefix}_posts / _token / _signals
     topics_file: Path        # rotation pool for this account
-    accounts_file: Path | None = None  # niche donor accounts to learn hooks from
     system_prompt: str       # the writer's voice
     angle_template: str      # research angle; "{keyword}" is substituted in
     seed_token_attr: str     # settings attr holding the first-run Threads token
@@ -292,6 +291,9 @@ class Brand:
     min_gap_minutes: int     # self-throttle: min minutes between published posts
     comments_enabled: bool   # whether this brand replies under other people's posts
     comment_min_gap_minutes: int  # self-throttle for comments
+    # Niche donor accounts this brand learns hooks from (its own list, not a
+    # shared one). None falls back to no peer scraping for the brand.
+    accounts_file: Path | None = None
     # Upper bound of the randomised post gap. The pipeline draws a fresh value in
     # [min_gap_minutes, max_gap_minutes] each tick so spacing never settles into
     # a recognisable rhythm. 0 falls back to min_gap_minutes.

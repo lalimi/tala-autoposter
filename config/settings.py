@@ -65,7 +65,13 @@ BLACKSEA_CHAIN_PROBABILITY = float(
 
 # @TheSoloHub (X): content mix is ~40% how-to threads, so chains are common.
 SOLOHUB_CHAIN_PROBABILITY = float(_env("SOLOHUB_CHAIN_PROBABILITY", "0.45") or "0.45")
-SOLOHUB_MIN_GAP_MINUTES = int(_env("SOLOHUB_MIN_GAP_MINUTES", "135") or "135")
+# X is billed per request, so cadence here is a budget decision, not a reach one.
+# At ~$0.05 per post all-in (writes incl. chain parts, the odd link post, one
+# metrics read) a randomised 8-10h gap lands ~2.7 posts/day ≈ $4/month, which
+# fits a $5 credit balance with room for chain variance. Raise only after topping
+# the balance up: 2h15m-2h50m like the Threads brands would cost ~$15/month.
+SOLOHUB_MIN_GAP_MINUTES = int(_env("SOLOHUB_MIN_GAP_MINUTES", "480") or "480")
+SOLOHUB_MAX_GAP_MINUTES = int(_env("SOLOHUB_MAX_GAP_MINUTES", "600") or "600")
 SOLOHUB_SALES_PROBABILITY = float(_env("SOLOHUB_SALES_PROBABILITY", "0.3") or "0.3")
 # Most sales posts point at the bio: on X a post with a URL costs ~$0.20 vs
 # ~$0.015, and links get less reach. The lead magnet lives in the bio anyway.

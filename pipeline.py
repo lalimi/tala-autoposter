@@ -37,10 +37,15 @@ def run_pipeline(
     # frequent cron + dropped/late GitHub runs still average the target cadence.
     if respect_min_gap and brand.min_gap_minutes:
         mins = store.minutes_since_last_post(brand.table_prefix)
-        if mins is not None and mins < brand.min_gap_minutes:
+        # Draw the gap fresh each tick so the spacing is never a fixed rhythm.
+        gap = random.uniform(
+            brand.min_gap_minutes,
+            max(brand.max_gap_minutes, brand.min_gap_minutes),
+        )
+        if mins is not None and mins < gap:
             logger.info(
-                "[%s] skip: last post %.0f min ago (< %d min gap)",
-                brand.key, mins, brand.min_gap_minutes,
+                "[%s] skip: last post %.0f min ago (< %.0f min, randomised)",
+                brand.key, mins, gap,
             )
             return None
 

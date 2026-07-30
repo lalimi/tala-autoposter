@@ -289,6 +289,10 @@ class Brand:
     seed_token_attr: str     # settings attr holding the first-run Threads token
     chain_probability: float # share of runs that publish a multi-post chain
     min_gap_minutes: int     # self-throttle: min minutes between published posts
+    # Upper bound of the randomised gap. The pipeline draws a fresh value in
+    # [min_gap_minutes, max_gap_minutes] before every tick, so spacing never
+    # lands on the same rhythm two days in a row.
+    max_gap_minutes: int = 0
     comments_enabled: bool   # whether this brand replies under other people's posts
     comment_min_gap_minutes: int  # self-throttle for comments
     image_manifest_url: str = ""   # public URL listing image URLs (empty = text-only)
@@ -330,6 +334,7 @@ TALA = Brand(
     seed_token_attr="THREADS_ACCESS_TOKEN",
     chain_probability=settings.CHAIN_PROBABILITY,
     min_gap_minutes=settings.TALA_MIN_GAP_MINUTES,
+    max_gap_minutes=settings.POST_GAP_MAX_MINUTES,
     comments_enabled=True,
     comment_min_gap_minutes=settings.TALA_COMMENT_MIN_GAP_MINUTES,
     image_manifest_url=settings.TALA_IMAGE_MANIFEST_URL,
@@ -351,6 +356,7 @@ BLACKSEA = Brand(
     # Mostly single friendly posts; occasionally a short tips list.
     chain_probability=settings.BLACKSEA_CHAIN_PROBABILITY,
     min_gap_minutes=settings.BLACKSEA_MIN_GAP_MINUTES,
+    max_gap_minutes=settings.POST_GAP_MAX_MINUTES,
     comments_enabled=False,  # blacksea only posts for now
     comment_min_gap_minutes=settings.BLACKSEA_MIN_GAP_MINUTES,
     image_manifest_url=settings.BLACKSEA_IMAGE_MANIFEST_URL,
@@ -370,6 +376,7 @@ DENYS = Brand(
     seed_token_attr="DENYS_THREADS_ACCESS_TOKEN",
     chain_probability=settings.DENYS_CHAIN_PROBABILITY,
     min_gap_minutes=settings.DENYS_MIN_GAP_MINUTES,
+    max_gap_minutes=settings.POST_GAP_MAX_MINUTES,
     comments_enabled=True,
     comment_min_gap_minutes=settings.DENYS_COMMENT_MIN_GAP_MINUTES,
     image_manifest_url=settings.DENYS_IMAGE_MANIFEST_URL,
@@ -392,6 +399,7 @@ SOLOHUB = Brand(
     seed_token_attr="",  # X tokens live in Supabase x_tokens, not in an env var
     chain_probability=settings.SOLOHUB_CHAIN_PROBABILITY,
     min_gap_minutes=settings.SOLOHUB_MIN_GAP_MINUTES,
+    max_gap_minutes=settings.POST_GAP_MAX_MINUTES,
     comments_enabled=False,  # X is far stricter about automated engagement
     comment_min_gap_minutes=settings.SOLOHUB_MIN_GAP_MINUTES,
     sales_probability=settings.SOLOHUB_SALES_PROBABILITY,

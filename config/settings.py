@@ -65,7 +65,7 @@ BLACKSEA_CHAIN_PROBABILITY = float(
 
 # @TheSoloHub (X): content mix is ~40% how-to threads, so chains are common.
 SOLOHUB_CHAIN_PROBABILITY = float(_env("SOLOHUB_CHAIN_PROBABILITY", "0.45") or "0.45")
-SOLOHUB_MIN_GAP_MINUTES = int(_env("SOLOHUB_MIN_GAP_MINUTES", "240") or "240")
+SOLOHUB_MIN_GAP_MINUTES = int(_env("SOLOHUB_MIN_GAP_MINUTES", "135") or "135")
 SOLOHUB_SALES_PROBABILITY = float(_env("SOLOHUB_SALES_PROBABILITY", "0.3") or "0.3")
 # Most sales posts point at the bio: on X a post with a URL costs ~$0.20 vs
 # ~$0.015, and links get less reach. The lead magnet lives in the bio anyway.
@@ -82,11 +82,17 @@ DENYS_CHAIN_PROBABILITY = float(
 # fires often (every ~30 min) but the pipeline skips a tick if the last post is
 # newer than this — so a dropped/delayed GitHub run is caught by the next one
 # instead of leaving a gap. Tala ≈ every 2h; blacksea ≈ 3-4 posts across the day.
-TALA_MIN_GAP_MINUTES = int(_env("POST_MIN_GAP_MINUTES", "115") or "115")
-BLACKSEA_MIN_GAP_MINUTES = int(_env("BLACKSEA_MIN_GAP_MINUTES", "210") or "210")
+# Cadence: a post roughly every 2h15m-2h50m, drawn fresh each tick. Measured
+# reach still favours the evening (21:00-01:00 Kyiv beat midday 6-9x), so the
+# windows stay inside waking hours rather than running around the clock.
+POST_GAP_MIN_MINUTES = int(_env("POST_GAP_MIN_MINUTES", "135") or "135")
+POST_GAP_MAX_MINUTES = int(_env("POST_GAP_MAX_MINUTES", "170") or "170")
+
+TALA_MIN_GAP_MINUTES = int(_env("POST_MIN_GAP_MINUTES", "135") or "135")
+BLACKSEA_MIN_GAP_MINUTES = int(_env("BLACKSEA_MIN_GAP_MINUTES", "135") or "135")
 # New-account warm-up: ~4h gap → 3-4 posts/day inside the daytime window. Lower
 # to ~175 (≈ every 3h) once the account is a couple of weeks old and trusted.
-DENYS_MIN_GAP_MINUTES = int(_env("DENYS_MIN_GAP_MINUTES", "240") or "240")
+DENYS_MIN_GAP_MINUTES = int(_env("DENYS_MIN_GAP_MINUTES", "135") or "135")
 
 # Commenting (replying under other people's posts). Only tala comments for now.
 # Candidates are scraped by keyword (scripts/refresh_signals.py) into

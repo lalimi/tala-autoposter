@@ -1,16 +1,14 @@
 [Unit]
-Description=tala post tick (evening window; ~4 posts/day in the high-reach hours)
+Description=tala post tick (every ~2-3h, randomised)
 
 [Timer]
-# Measured on 200 posts: reach depends far more on WHEN than on what. Average
-# views by publish hour (UTC / Kyiv+3): 18:00→1400, 21:00→814, 20:00→781,
-# 19:00→599, vs only 103-250 across 08-17 UTC (midday Kyiv). So post into the
-# evening scroll (18:00-01:00 Kyiv) instead of spraying 12 posts across the day.
-# Checked hourly 15-22 UTC; TALA_MIN_GAP_MINUTES thins it to ~4 well-spaced posts.
-OnCalendar=*-*-* 15..22:07:00
-# Jitter the real fire time by up to ~8 min so posts don't land on an exact
-# robotic minute every hour.
-RandomizedDelaySec=500
+# Checked hourly 05-22 UTC (08:00-01:00 Kyiv). The pipeline draws a fresh
+# gap of 2h15m-2h50m per tick, so this yields ~6-7 posts a day at irregular
+# times. Measured reach still peaks 21:00-01:00 Kyiv; daytime slots are the
+# weaker ones and exist for volume, not for reach.
+OnCalendar=*-*-* 05..22:07:00
+# Fire up to 15 min off the scheduled minute.
+RandomizedDelaySec=900
 Persistent=true
 Unit=tala@post-tala.service
 

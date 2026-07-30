@@ -89,14 +89,37 @@ class WriterAgent:
             "що подумала), а не з вигаданої виробничої хронології\n"
         )
 
+    # HOW the first line is built, kept separate from WHAT the hook does. The
+    # hook alone still locked the grammar: "explain who shouldn't read this"
+    # produces "не показуй ..." or "якщо ти ..., не читай" almost every time, so
+    # rewriting the hook description only swapped one template for another.
+    OPENING_FORMS = (
+        "почни з голої цифри або суми, без жодного слова перед нею",
+        "почни з питання, на яке читач подумки відповідає «так, це я»",
+        "почни з чужої репліки в лапках, яку тобі сказали",
+        "почни з дії у минулому часі: що ти зробила, без пояснень навіщо",
+        "почни з точного часу або місця (година, кімната, стіл)",
+        "почни зі спростування поширеної думки: спочатку теза, потім «ні»",
+        "почни з короткого переліку через кому, без вступу",
+        "почни з наслідку, а причину віддай уже в наступному рядку",
+    )
+
     @staticmethod
-    def _hook_block(hook: str | None) -> str:
-        if not hook:
+    def _hook_block(hook: str | None, opening: str | None = None) -> str:
+        if not hook and not opening:
             return ""
-        return (
-            f"ТИП ХУКА ДЛЯ ЦЬОГО ПОСТА (обовʼязково саме цей): {hook}\n"
-            "не підміняй його іншим типом, навіть якщо інший здається сильнішим.\n"
-        )
+        out = ""
+        if hook:
+            out += (
+                f"ТИП ХУКА ДЛЯ ЦЬОГО ПОСТА (обовʼязково саме цей): {hook}\n"
+                "не підміняй його іншим типом, навіть якщо інший здається сильнішим.\n"
+            )
+        if opening:
+            out += (
+                f"ФОРМА ПЕРШОГО РЯДКА (обовʼязкова): {opening}\n"
+                "перший рядок будується саме так, навіть якщо звично інакше.\n"
+            )
+        return out
 
     # Currency amounts and percentages — the shapes an invented business claim
     # takes. Process numbers ("4-5 годин", "2 місяці", "15 хвилин") don't match.
@@ -195,7 +218,8 @@ class WriterAgent:
         return "\nу цьому пості НЕ згадуй курс і НЕ додавай жодних посилань.\n"
 
     def run(self, brief: dict, memory, sell: bool = False,
-            hook: str | None = None, via_bio: bool = False) -> str:
+            hook: str | None = None, via_bio: bool = False,
+            opening: str | None = None) -> str:
         recent_topics = memory.get_recent_topics()
         best_post = memory.get_best_performing_post()
         recent_openings = memory.recent_openings()
@@ -221,7 +245,7 @@ class WriterAgent:
                 f"вже опубліковані теми (не повторювати): {recent_topics}\n"
                 f"{self._fact_block(brief.get('fact'))}"
                 f"{self._anti_repeat(recent_openings)}"
-                f"{self._hook_block(hook)}"
+                f"{self._hook_block(hook, opening)}"
                 f"{self._sell_block(sell, via_bio)}"
                 f"максимум {self.max_chars} символів, ціль {self.target_chars}.\n"
                 "поверни лише текст поста. без пояснень. без лапок навколо тексту."
@@ -245,7 +269,7 @@ class WriterAgent:
                 f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
                 f"{self._fact_block(brief.get('fact'))}"
                 f"{self._anti_repeat(recent_openings)}"
-                f"{self._hook_block(hook)}"
+                f"{self._hook_block(hook, opening)}"
                 f"{self._sell_block(sell, via_bio)}"
                 f"пост який зайшов найкраще за переглядами (орієнтир на стиль, не копіювати): {best_post}\n\n"
                 f"важливо: тему “{brief['keyword']}” дослівно в пості не називати. "
@@ -364,7 +388,7 @@ class WriterAgent:
 
     def run_chain(self, brief: dict, memory, max_parts: int | None = None,
                   sell: bool = False, hook: str | None = None,
-                  via_bio: bool = False) -> list[str]:
+                  via_bio: bool = False, opening: str | None = None) -> list[str]:
         """Write a checklist / mini-guide as a short post chain. Returns the parts
         (each <=500 chars). The pipeline publishes them as a Threads reply-chain.
         Length is capped by settings.CHAIN_MAX_PARTS (3 on Vercel, more on a VPS)."""
@@ -388,7 +412,7 @@ class WriterAgent:
             f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
             f"{self._fact_block(brief.get('fact'))}"
             f"{self._anti_repeat(recent_openings)}"
-            f"{self._hook_block(hook)}"
+            f"{self._hook_block(hook, opening)}"
             f"{self._sell_block(sell, via_bio)}\n"
             "формат ланцюжка:\n"
             f"- РІВНО {max_parts} постів (1 хук + {steps} пункти), не більше.\n"

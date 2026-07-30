@@ -74,13 +74,22 @@ def run_pipeline(
     # in practice the same hook could run several posts in a row.
     from datetime import datetime, timezone
 
-    hook = writer.HOOK_TYPES[datetime.now(timezone.utc).hour % len(writer.HOOK_TYPES)]
-    logger.info("[%s] hook: %s", brand.key, hook[:45])
+    now = datetime.now(timezone.utc)
+    hook = writer.HOOK_TYPES[now.hour % len(writer.HOOK_TYPES)]
+    # Rotate the grammar of the first line independently of the hook, on a
+    # different stride, so the same hook doesn't keep producing the same
+    # construction. 8 hooks x 8 forms with co-prime strides = long cycle.
+    opening = writer.OPENING_FORMS[
+        (now.hour * 3 + now.day) % len(writer.OPENING_FORMS)
+    ]
+    logger.info("[%s] hook: %s | opening: %s",
+                brand.key, hook[:38], opening[:38])
 
     # Chain vs single is brand-tuned (Tala leans chains, blacksea leans singles).
     parts = None
     if random.random() < brand.chain_probability:
-        parts = writer.run_chain(brief, memory, sell=sell, hook=hook, via_bio=via_bio)
+        parts = writer.run_chain(brief, memory, sell=sell, hook=hook,
+                                 via_bio=via_bio, opening=opening)
         if len(parts) < 2:
             parts = None  # too short to be a chain -> fall back to a single post
 
@@ -88,7 +97,8 @@ def run_pipeline(
         post_text = "\n\n---\n\n".join(parts)
         fmt = "chain"
     else:
-        post_text = writer.run(brief, memory, sell=sell, hook=hook, via_bio=via_bio)
+        post_text = writer.run(brief, memory, sell=sell, hook=hook,
+                               via_bio=via_bio, opening=opening)
         fmt = "single"
 
     # Retire the fact so the next post reaches for different material.

@@ -254,73 +254,10 @@ class WriterAgent:
                 ],
             )
 
-        # Enforce non-repetition in code: the prompt-level ban kept being ignored.
-        if self._is_duplicate(text, recent_openings):
-            logger.info("draft repeated a recent opening — regenerating")
-            text = self._call(client, [
-                {"role": "user", "content": user_message},
-                {"role": "assistant", "content": text},
-                {"role": "user", "content": (
-                    "цей зачин уже був у недавньому пості. перепиши пост з "
-                    "ЦІЛКОМ іншим входом: інша сцена, інша деталь, інші цифри "
-                    "або зовсім без цифр. тему й голос збережи. "
-                    "поверни лише текст поста."
-                )},
-            ])
-
-        # A BlackSea-owned persona must not advertise a competing storefront.
-        if getattr(self.brand, "forbid_rival_platforms", False):
-            rival = self._names_rival(text)
-            if rival:
-                logger.info("draft named a rival platform (%r) — regenerating", rival)
-                text = self._call(client, [
-                    {"role": "user", "content": user_message},
-                    {"role": "assistant", "content": text},
-                    {"role": "user", "content": (
-                        f"у тексті згадана конкурентна платформа «{rival}». "
-                        "перепиши пост без неї. якщо йдеться про приймання "
-                        "оплати чи де продавати — це blacksea. решту "
-                        "інструментів (notion, ai, no-code) можна лишити. "
-                        "поверни лише текст поста."
-                    )},
-                ])
-
-        # Personas without a real trading history must not invent figures.
-        if getattr(self.brand, "forbid_money_claims", False):
-            bad = self._has_money_claim(text)
-            if bad:
-                logger.info("draft invented a figure (%r) — regenerating", bad)
-                text = self._call(client, [
-                    {"role": "user", "content": user_message},
-                    {"role": "assistant", "content": text},
-                    {"role": "user", "content": (
-                        f"у тексті є вигадана цифра: «{bad}». перепиши пост "
-                        "БЕЗ будь-яких сум, відсотків, конверсій і кількості "
-                        "продажів. результат описуй якісно. цифри дозволені лише "
-                        "про час і процес (години, місяці, кроки). "
-                        "поверни лише текст поста."
-                    )},
-                ])
-                still = self._has_money_claim(text)
-                if still:
-                    logger.warning("still contains a figure (%r) after retry", still)
-
-        text = self._deslop(client, text)
-
-        # Link policy is enforced LAST: the de-slop rewrite happily re-adds a URL
-        # that an earlier pass had removed, which is how a sell=False post still
-        # went out carrying the product link. On Threads that costs reach; on X it
-        # costs ~13x per post ($0.20 vs $0.015).
-        if (not sell or via_bio) and self._URL_RE.search(text or ""):
-            logger.info("stripping link from a %s post",
-                        "bio-CTA" if via_bio else "non-sales")
-            text = self._strip_links(text)
-        elif sell and not via_bio and self.brand.product_url \
-                and not self._URL_RE.search(text or ""):
-            # Conversely, a link-mode sales post that lost its URL in the rewrite
-            # is useless — put it back on its own line.
-            logger.info("sales post lost its link — reattaching")
-            text = f"{text}\n\n{self.brand.product_url}"
+        text = self._apply_guards(
+            client, text, user_message, recent_openings,
+            sell=sell, via_bio=via_bio,
+        )
 
         # Last resort: hard-trim on a paragraph/line boundary so we never 400.
         if len(text) > self.max_chars:
@@ -328,6 +265,81 @@ class WriterAgent:
         # A single post must never carry a chain-style "---" divider (the model
         # sometimes adds one); turn it into a plain paragraph break.
         return self._strip_dividers(text)
+
+    def _apply_guards(self, client, text: str, user_message: str,
+                      recent_openings: list[str], *, sell: bool = False,
+                      via_bio: bool = False, is_chain: bool = False) -> str:
+        """Every code-level check a draft must pass, for singles AND chains.
+
+        These lived inline in run() only, so chains — 90% of Tala's output — went
+        out unchecked: identical openings two posts running, and for X the link
+        policy (a $0.20 vs $0.015 difference per post) never applied at all.
+        """
+        keep_format = (
+            "збережи структуру ланцюжка: ті самі частини, розділені рядком ---.\n"
+            if is_chain else ""
+        )
+
+        def regen(instruction: str) -> str:
+            return self._call(
+                client,
+                [
+                    {"role": "user", "content": user_message},
+                    {"role": "assistant", "content": text},
+                    {"role": "user", "content": keep_format + instruction},
+                ],
+                max_tokens=4000 if is_chain else None,
+            )
+
+        # Repetition: the prompt-level ban kept being ignored.
+        if self._is_duplicate(text, recent_openings):
+            logger.info("draft repeated a recent opening — regenerating")
+            text = regen(
+                "цей зачин уже був у недавньому пості. перепиши з ЦІЛКОМ іншим "
+                "входом: інша сцена, інша деталь, інші цифри або зовсім без "
+                "цифр. тему й голос збережи. поверни лише текст."
+            )
+
+        # A BlackSea-owned persona must not advertise a competing storefront.
+        if getattr(self.brand, "forbid_rival_platforms", False):
+            rival = self._names_rival(text)
+            if rival:
+                logger.info("draft named a rival platform (%r) — regenerating", rival)
+                text = regen(
+                    f"у тексті згадана конкурентна платформа «{rival}». перепиши "
+                    "без неї. якщо йдеться про приймання оплати чи де продавати "
+                    "— це blacksea. notion, ai, no-code лишати можна. "
+                    "поверни лише текст."
+                )
+
+        # Personas without a real trading history must not invent figures.
+        if getattr(self.brand, "forbid_money_claims", False):
+            bad = self._has_money_claim(text)
+            if bad:
+                logger.info("draft invented a figure (%r) — regenerating", bad)
+                text = regen(
+                    f"у тексті є вигадана цифра: «{bad}». перепиши БЕЗ сум, "
+                    "відсотків, конверсій і кількості продажів. результат "
+                    "описуй якісно. цифри дозволені лише про час і процес. "
+                    "поверни лише текст."
+                )
+                still = self._has_money_claim(text)
+                if still:
+                    logger.warning("still contains a figure (%r) after retry", still)
+
+        text = self._deslop(client, text, is_chain=is_chain)
+
+        # Link policy runs LAST: the de-slop rewrite re-adds URLs an earlier pass
+        # removed, which is how a sell=False post still went out with the link.
+        if (not sell or via_bio) and self._URL_RE.search(text or ""):
+            logger.info("stripping link from a %s post",
+                        "bio-CTA" if via_bio else "non-sales")
+            text = self._strip_links(text)
+        elif sell and not via_bio and self.brand.product_url \
+                and not self._URL_RE.search(text or ""):
+            logger.info("sales post lost its link — reattaching")
+            text = f"{text}\n\n{self.brand.product_url}"
+        return text
 
     def run_chain(self, brief: dict, memory, max_parts: int | None = None,
                   sell: bool = False, hook: str | None = None,
@@ -374,7 +386,10 @@ class WriterAgent:
         raw = self._call(
             client, [{"role": "user", "content": user_message}], max_tokens=4000
         )
-        raw = self._deslop(client, raw, is_chain=True)
+        raw = self._apply_guards(
+            client, raw, user_message, recent_openings,
+            sell=sell, via_bio=via_bio, is_chain=True,
+        )
         parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
         return [self._trim(p) for p in parts][:max_parts]
 

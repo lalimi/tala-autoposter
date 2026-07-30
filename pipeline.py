@@ -84,6 +84,12 @@ def run_pipeline(
         post_text = writer.run(brief, memory, sell=sell, hook=hook, via_bio=via_bio)
         fmt = "single"
 
+    # Retire the fact so the next post reaches for different material.
+    fact = brief.get("fact")
+    if fact:
+        store.mark_fact_used(fact["id"])
+        logger.info("[%s] fact: %s", brand.key, fact["text"][:60])
+
     row_id = memory.save_post(topic, fmt, post_text, None, "draft")
     logger.info("[%s] draft | %s | %s | %s", brand.key, fmt, topic,
                 post_text[:60].replace("\n", " "))

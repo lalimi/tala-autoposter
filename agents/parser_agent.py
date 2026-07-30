@@ -43,6 +43,9 @@ class ParserAgent:
         # The single best real post on this topic — the writer translates/adapts
         # it. None until the scraper has populated this brand's signals.
         seed = store.top_seed(keywords, prefix=self.prefix)
+        # Real material this brand owns, rotated least-used-first. Without it the
+        # writer can only recycle the handful of facts baked into its prompt.
+        fact = store.next_fact(prefix=self.prefix)
 
         keyword = keywords[0]
         angle = self.brand.angle_template.format(keyword=keyword)
@@ -52,5 +55,6 @@ class ParserAgent:
             "trend_signals": signals,
             "peer_signals": peer_signals,
             "seed": seed,
+            "fact": fact,
             "angle": angle,
         }

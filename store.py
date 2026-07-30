@@ -238,6 +238,29 @@ def peer_signals(hours: int = 72, limit: int = 3, prefix: str = "tala") -> list[
     return [f"@{r['source']} ({r['likes']}♥): {r['text'].strip()[:130]}" for r in rows]
 
 
+def next_fact(prefix: str = "tala") -> dict | None:
+    """The least-used active fact for this brand — real material the post is
+    grounded in. The writer only ever had three hardcoded numbers (447 грн, 94
+    продажі, 60к) and was structurally forced to rephrase them forever; measured
+    against the owner's own posts, which each carried NEW real information, the
+    bot lost ~1.8x on median views and ~1.9x on likes."""
+    rows = _req("GET", "brand_facts", params={
+        "select": "id,kind,text,detail,used_count",
+        "brand": f"eq.{prefix}", "active": "is.true",
+        "order": "used_count.asc,last_used_at.asc.nullsfirst", "limit": 1,
+    }) or []
+    return rows[0] if rows else None
+
+
+def mark_fact_used(fact_id: int) -> None:
+    row = (_req("GET", "brand_facts", params={
+        "select": "used_count", "id": f"eq.{fact_id}", "limit": 1}) or [{}])[0]
+    _req("PATCH", "brand_facts", params={"id": f"eq.{fact_id}"},
+         json={"used_count": (row.get("used_count") or 0) + 1,
+               "last_used_at": _now_iso()},
+         prefer="return=minimal")
+
+
 def top_seed(keywords: list[str], hours: int = 168, prefix: str = "tala") -> dict | None:
     """The single highest-reach real scraped post on this topic, FULL text — the
     seed the writer translates/adapts. Prefers a keyword-matched post; falls back

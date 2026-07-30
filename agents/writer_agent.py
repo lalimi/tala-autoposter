@@ -43,6 +43,23 @@ class WriterAgent:
     )
 
     @staticmethod
+    def _fact_block(fact: dict | None) -> str:
+        """Ground the post in one real, brand-owned fact. The prompt's three
+        hardcoded numbers meant every post was a rephrase of the same material;
+        the owner's own posts each carried something new and measured ~1.8x
+        better on views."""
+        if not fact:
+            return ""
+        detail = f"\nдеталі: {fact['detail']}" if fact.get("detail") else ""
+        return (
+            "ФАКТ ДЛЯ ЦЬОГО ПОСТА (обовʼязково побудуй пост саме на ньому):\n"
+            f"  {fact['text']}{detail}\n"
+            "- це справжня інформація, не вигадуй навколо неї інших цифр\n"
+            "- пост має нести саме ЦЕЙ факт як новину/суть, а не переказувати "
+            "загальні тези про твій шлях\n"
+        )
+
+    @staticmethod
     def _hook_block(hook: str | None) -> str:
         if not hook:
             return ""
@@ -162,6 +179,7 @@ class WriterAgent:
                 "- якщо джерело англійською чи про іншу нішу, бери лише механіку хука "
                 "й перекладай у свій контекст\n"
                 f"вже опубліковані теми (не повторювати): {recent_topics}\n"
+                f"{self._fact_block(brief.get('fact'))}"
                 f"{self._anti_repeat(recent_openings)}"
                 f"{self._hook_block(hook)}"
                 f"{self._sell_block(sell, via_bio)}"
@@ -185,6 +203,7 @@ class WriterAgent:
                 f"{peer_line}"
                 f"кут: {brief['angle']}\n\n"
                 f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
+                f"{self._fact_block(brief.get('fact'))}"
                 f"{self._anti_repeat(recent_openings)}"
                 f"{self._hook_block(hook)}"
                 f"{self._sell_block(sell, via_bio)}"
@@ -300,6 +319,7 @@ class WriterAgent:
             f"{peer_line}"
             f"кут: {brief['angle']}\n\n"
             f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
+            f"{self._fact_block(brief.get('fact'))}"
             f"{self._anti_repeat(recent_openings)}"
             f"{self._hook_block(hook)}"
             f"{self._sell_block(sell, via_bio)}\n"

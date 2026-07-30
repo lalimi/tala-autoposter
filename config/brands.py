@@ -284,6 +284,7 @@ class Brand:
     key: str                 # short id, e.g. "tala" / "blacksea"
     table_prefix: str        # Supabase table prefix: {prefix}_posts / _token / _signals
     topics_file: Path        # rotation pool for this account
+    accounts_file: Path | None = None  # niche donor accounts to learn hooks from
     system_prompt: str       # the writer's voice
     angle_template: str      # research angle; "{keyword}" is substituted in
     seed_token_attr: str     # settings attr holding the first-run Threads token
@@ -345,6 +346,7 @@ TALA = Brand(
     sales_probability=settings.TALA_SALES_PROBABILITY,
     product_url="https://digital.blacksea.in.ua/l/fah/FIRST10",
     niche="цифрові продукти й notion-шаблони, тривожність і системи для життя, фріланс і доходи з власних продуктів",
+    accounts_file=settings.CONFIG_DIR / "tala_accounts.json",
 )
 
 BLACKSEA = Brand(
@@ -366,6 +368,7 @@ BLACKSEA = Brand(
     image_manifest_url=settings.BLACKSEA_IMAGE_MANIFEST_URL,
     image_probability=settings.BLACKSEA_IMAGE_PROBABILITY,
     niche="маркетплейс цифрових продуктів: як автори продають гайди й шаблони, як покупці їх знаходять",
+    accounts_file=settings.CONFIG_DIR / "blacksea_accounts.json",
 )
 
 
@@ -390,6 +393,7 @@ DENYS = Brand(
     sales_probability=settings.DENYS_SALES_PROBABILITY,
     product_url="https://den.blacksea.in.ua/l/first-sell",
     niche="відеомонтаж і моушн-дизайн, premiere й after effects, фріланс-рутина й клієнтські правки, продаж пресетів",
+    accounts_file=settings.CONFIG_DIR / "denys_accounts.json",
 )
 
 
@@ -420,6 +424,7 @@ SOLOHUB = Brand(
     # X Premium allows 25 000, but this persona is deliberately laconic.
     max_post_chars=settings.SOLOHUB_MAX_CHARS,
     niche="соло-підприємництво, no-code та ai-інструменти, цифрові продукти й пасивні активи, юніт-економіка",
+    accounts_file=settings.CONFIG_DIR / "solohub_accounts.json",
 )
 
 

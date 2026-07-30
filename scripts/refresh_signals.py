@@ -87,13 +87,27 @@ def main() -> None:
         [kw for s in brand_sample.values() for kw in s] + comment_sample
     ))
 
-    accounts_file = settings.CONFIG_DIR / "accounts.json"
-    accounts = json.load(open(accounts_file, encoding="utf-8")).get("accounts", [])
-    if len(accounts) > PEER_SAMPLE:
-        accounts = random.sample(accounts, PEER_SAMPLE)
+    # Donor accounts are per brand now. The shared list was global and generic
+    # (motivational, SQL careers, Indonesian productivity), so peer signals — the
+    # bulk of the material — never matched any brand's niche.
+    brand_accounts = {}
+    for b in SCRAPE_BRANDS:
+        names = []
+        if b.accounts_file:
+            try:
+                names = json.load(open(b.accounts_file, encoding="utf-8")).get("accounts", [])
+            except (OSError, ValueError):
+                names = []
+        per_brand = max(3, PEER_SAMPLE // max(1, len(SCRAPE_BRANDS)))
+        brand_accounts[b] = (random.sample(names, per_brand)
+                             if len(names) > per_brand else list(names))
+    accounts = list(dict.fromkeys(a for v in brand_accounts.values() for a in v))
 
-    log.info("scraping %d keywords (%s) + %d accounts...", len(all_keywords),
-             ", ".join(f"{b.key}:{len(s)}" for b, s in brand_sample.items()), len(accounts))
+    log.info("scraping %d keywords (%s) + %d donor accounts (%s)...",
+             len(all_keywords),
+             ", ".join(f"{b.key}:{len(s)}" for b, s in brand_sample.items()),
+             len(accounts),
+             ", ".join(f"{b.key}:{len(v)}" for b, v in brand_accounts.items()))
     data = fetch_all(all_keywords, accounts, max_total=MAX_TOTAL)
 
     kw_posts = data.get("keywords", [])
@@ -104,9 +118,9 @@ def main() -> None:
     except Exception as exc:  # never fail a scrape over bookkeeping
         log.warning("author stats not updated: %s", exc)
     # Peer posts (tracked accounts) are brand-agnostic hook/structure orientation.
-    peer_rows = _signal_rows(data.get("profiles", []), "peer")
+    profiles = data.get("profiles", [])
 
-    if not kw_posts and not peer_rows:
+    if not kw_posts and not profiles:
         log.warning("scraper returned nothing — keeping existing signals (no wipe)")
         return
 
@@ -124,6 +138,10 @@ def main() -> None:
             mine = filter_relevant(brand.niche, mine)
             log.info("[%s] relevance: %d -> %d candidates", brand.key, before, len(mine))
         kw_rows = _signal_rows(mine, "keyword")
+        # Only this brand's own donors, not everyone's.
+        mine_names = {f"@{a}" for a in brand_accounts.get(brand, [])}
+        peer_rows = _signal_rows(
+            [p for p in profiles if p.get("keyword") in mine_names], "peer")
         if kw_rows:
             store.replace_signals("keyword", kw_rows, prefix=brand.table_prefix)
         if peer_rows:

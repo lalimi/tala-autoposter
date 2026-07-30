@@ -148,11 +148,23 @@ async def _search_keyword(keyword: str, context) -> list[dict]:
     try:
         # domcontentloaded, not networkidle: Threads keeps long-lived
         # connections open so networkidle routinely times out at 30s.
-        await page.goto(url, timeout=30000, wait_until="domcontentloaded")
-        await page.wait_for_timeout(4000)
-        for _ in range(3):  # scroll to lazy-load more results
-            await page.keyboard.press("End")
-            await page.wait_for_timeout(1500)
+        # Threads bounces an unsettled search page back to the home feed, and a
+        # fresh session gets bounced on its first navigation almost every time —
+        # that is why the same query returned real results in one run and global
+        # recommendations in another. Land on /search or retry; parsing the home
+        # feed is what filled the signal tables with Willow Smith and Nigel Farage.
+        for attempt in range(3):
+            await page.goto(url, timeout=30000, wait_until="domcontentloaded")
+            await page.wait_for_timeout(4000)
+            for _ in range(3):  # scroll to lazy-load more results
+                await page.keyboard.press("End")
+                await page.wait_for_timeout(1500)
+            if "/search" in page.url:
+                break
+            print(f"↻ search '{keyword}' bounced to {page.url[:40]} (try {attempt + 1})")
+        else:
+            print(f"⚠️  search '{keyword}': never stayed on the results page")
+            return []
         html = await page.content()
         return _extract_posts_from_html(html)[:MAX_PER_SOURCE]
     except Exception as e:

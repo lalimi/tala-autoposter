@@ -42,6 +42,19 @@ class WriterAgent:
         "пост-діалог: чиясь репліка і що ти насправді подумала",
     )
 
+    _URL_RE = re.compile(r"https?://\S+")
+
+    @classmethod
+    def _strip_links(cls, text: str) -> str:
+        """Remove URLs the post was told not to include. The prompt-level ban was
+        ignored — a sell=False draft still ended with the course link. On Threads
+        a stray link costs reach; on X it costs ~13x more per post ($0.20 vs
+        $0.015), so this is enforced rather than requested."""
+        cleaned = cls._URL_RE.sub("", text or "")
+        # tidy the empty line the URL usually sat on
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        return cleaned.strip()
+
     @staticmethod
     def _fact_block(fact: dict | None) -> str:
         """Ground the post in one real, brand-owned fact. The prompt's three
@@ -254,6 +267,13 @@ class WriterAgent:
                     "поверни лише текст поста."
                 )},
             ])
+
+        # Links only where they were asked for: a bio-CTA post or a non-sales
+        # post must not carry a URL (reach on Threads, cost on X).
+        if (not sell or via_bio) and self._URL_RE.search(text or ""):
+            logger.info("stripping link from a %s post",
+                        "bio-CTA" if via_bio else "non-sales")
+            text = self._strip_links(text)
 
         # A BlackSea-owned persona must not advertise a competing storefront.
         if getattr(self.brand, "forbid_rival_platforms", False):

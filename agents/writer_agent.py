@@ -268,13 +268,6 @@ class WriterAgent:
                 )},
             ])
 
-        # Links only where they were asked for: a bio-CTA post or a non-sales
-        # post must not carry a URL (reach on Threads, cost on X).
-        if (not sell or via_bio) and self._URL_RE.search(text or ""):
-            logger.info("stripping link from a %s post",
-                        "bio-CTA" if via_bio else "non-sales")
-            text = self._strip_links(text)
-
         # A BlackSea-owned persona must not advertise a competing storefront.
         if getattr(self.brand, "forbid_rival_platforms", False):
             rival = self._names_rival(text)
@@ -313,6 +306,21 @@ class WriterAgent:
                     logger.warning("still contains a figure (%r) after retry", still)
 
         text = self._deslop(client, text)
+
+        # Link policy is enforced LAST: the de-slop rewrite happily re-adds a URL
+        # that an earlier pass had removed, which is how a sell=False post still
+        # went out carrying the product link. On Threads that costs reach; on X it
+        # costs ~13x per post ($0.20 vs $0.015).
+        if (not sell or via_bio) and self._URL_RE.search(text or ""):
+            logger.info("stripping link from a %s post",
+                        "bio-CTA" if via_bio else "non-sales")
+            text = self._strip_links(text)
+        elif sell and not via_bio and self.brand.product_url \
+                and not self._URL_RE.search(text or ""):
+            # Conversely, a link-mode sales post that lost its URL in the rewrite
+            # is useless — put it back on its own line.
+            logger.info("sales post lost its link — reattaching")
+            text = f"{text}\n\n{self.brand.product_url}"
 
         # Last resort: hard-trim on a paragraph/line boundary so we never 400.
         if len(text) > self.max_chars:

@@ -68,11 +68,13 @@ def run_pipeline(
 
     # Pick the hook type here too: left to the model it always chose the income
     # reveal, so 447/94/60к opened most posts. Avoid the ones used most recently.
-    recent_openings = memory.recent_openings()
-    hook = random.choice([
-        h for h in writer.HOOK_TYPES
-        if not any(h.split()[0][:6].lower() in o.lower() for o in recent_openings[:3])
-    ] or list(writer.HOOK_TYPES))
+    # Cycle hooks by the hour rather than picking at random: the old exclusion
+    # compared a hook's first word against recent openings, which never matched
+    # (the "заборона/парадокс" hook writes "не показуй...", not "заборона"), so
+    # in practice the same hook could run several posts in a row.
+    from datetime import datetime, timezone
+
+    hook = writer.HOOK_TYPES[datetime.now(timezone.utc).hour % len(writer.HOOK_TYPES)]
     logger.info("[%s] hook: %s", brand.key, hook[:45])
 
     # Chain vs single is brand-tuned (Tala leans chains, blacksea leans singles).

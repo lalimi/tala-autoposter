@@ -130,6 +130,16 @@ class WriterAgent:
             o = old.strip().lower()
             if difflib.SequenceMatcher(None, first[:70], o[:70]).ratio() > 0.6:
                 return True
+            # A long identical run at the start is the same template even when
+            # the tails diverge enough to keep the ratio down: three drafts all
+            # opened "не показуй цей список тому хто ..." at ratios 0.56-0.81.
+            common = 0
+            for a, b in zip(first, o):
+                if a != b:
+                    break
+                common += 1
+            if common >= 25:
+                return True
         return False
 
     @staticmethod

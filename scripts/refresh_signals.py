@@ -107,7 +107,17 @@ def main() -> None:
     # Write per brand: its own keyword posts, plus the shared peer batch.
     for brand, kws in brand_kws.items():
         kset = set(kws)
-        kw_rows = _signal_rows([p for p in kw_posts if p.get("keyword") in kset], "keyword")
+        mine = [p for p in kw_posts if p.get("keyword") in kset]
+        # Keyword search is loose — it has handed the writer posts about mortgage
+        # rates and politics. Score the strongest candidates against the brand's
+        # niche and drop the ones that only matched a word.
+        if brand.niche and mine:
+            from agents.relevance import filter_relevant
+
+            before = len(mine)
+            mine = filter_relevant(brand.niche, mine)
+            log.info("[%s] relevance: %d -> %d candidates", brand.key, before, len(mine))
+        kw_rows = _signal_rows(mine, "keyword")
         if kw_rows:
             store.replace_signals("keyword", kw_rows, prefix=brand.table_prefix)
         if peer_rows:

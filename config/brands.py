@@ -316,6 +316,9 @@ class Brand:
     forbid_money_claims: bool = False
     # True for personas owned by BlackSea: never recommend a rival storefront.
     forbid_rival_platforms: bool = False
+    # Plain-language niche, used to score scraped posts for relevance before they
+    # can become seed material. Empty disables the gate for this brand.
+    niche: str = ""
     # Which network this brand posts to: "threads" (Graph API) or "x" (X API).
     platform: str = "threads"
     # Hard cap per post. Threads: 500. X: 280 without Premium, 25 000 with it.
@@ -341,6 +344,7 @@ TALA = Brand(
     image_probability=settings.TALA_IMAGE_PROBABILITY,
     sales_probability=settings.TALA_SALES_PROBABILITY,
     product_url="https://digital.blacksea.in.ua/l/fah/FIRST10",
+    niche="цифрові продукти й notion-шаблони, тривожність і системи для життя, фріланс і доходи з власних продуктів",
 )
 
 BLACKSEA = Brand(
@@ -361,6 +365,7 @@ BLACKSEA = Brand(
     comment_min_gap_minutes=settings.BLACKSEA_MIN_GAP_MINUTES,
     image_manifest_url=settings.BLACKSEA_IMAGE_MANIFEST_URL,
     image_probability=settings.BLACKSEA_IMAGE_PROBABILITY,
+    niche="маркетплейс цифрових продуктів: як автори продають гайди й шаблони, як покупці їх знаходять",
 )
 
 
@@ -384,6 +389,7 @@ DENYS = Brand(
     session_file=settings.DENYS_SESSION_FILE,
     sales_probability=settings.DENYS_SALES_PROBABILITY,
     product_url="https://den.blacksea.in.ua/l/first-sell",
+    niche="відеомонтаж і моушн-дизайн, premiere й after effects, фріланс-рутина й клієнтські правки, продаж пресетів",
 )
 
 
@@ -413,6 +419,7 @@ SOLOHUB = Brand(
     forbid_rival_platforms=True,
     # X Premium allows 25 000, but this persona is deliberately laconic.
     max_post_chars=settings.SOLOHUB_MAX_CHARS,
+    niche="соло-підприємництво, no-code та ai-інструменти, цифрові продукти й пасивні активи, юніт-економіка",
 )
 
 

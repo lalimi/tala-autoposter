@@ -1,41 +1,86 @@
 {
-  "_comment": "Теми ротації для @denys — монтажер/моушн-дизайнер. Сухий сарказм, факти, скріни внутрянки. keywords лише орієнтир кута для райтера.",
+  "_comment": "Теми ротації для @denys — монтажер/моушн-дизайнер. Сухий сарказм, факти, скріни внутрянки. keywords лише орієнтир кута для райтера. МОВА ЗАПИТІВ: переважно англійська — ця ніша українською на Threads майже не існує, і пошук підсовує випадкове. Англомовні пости йдуть у seed як механіка хука, райтер перезаземлює їх у справжні факти бренду й пише українською.",
   "topics": [
     {
       "name": "абсурдні_правки",
-      "keywords": ["клієнтські правки", "зроби так само але інакше", "абсурдний бриф", "нескінченні правки"]
+      "keywords": [
+        "client revisions",
+        "client feedback nightmare",
+        "абсурдні правки клієнта",
+        "video editing clients"
+      ]
     },
     {
       "name": "система_проти_рутини",
-      "keywords": ["пресети premiere", "автоматизація монтажу", "система замість натхнення", "економія годин"]
+      "keywords": [
+        "premiere pro presets",
+        "video editing workflow",
+        "editing templates save time",
+        "after effects preset"
+      ]
     },
     {
       "name": "час_у_грошах",
-      "keywords": ["скільки коштує година", "облік часу фрілансера", "рахую години на проєкт", "погодинна ставка"]
+      "keywords": [
+        "hourly rate freelancer",
+        "charging by the hour",
+        "скільки коштує година",
+        "raise your rates"
+      ]
     },
     {
       "name": "ai_в_монтажі",
-      "keywords": ["ai генерація відео", "автомонтаж", "майбутнє професії монтажера", "швидкість проти страху"]
+      "keywords": [
+        "ai video editing",
+        "ai replacing editors",
+        "ai в монтажі",
+        "future of video editing"
+      ]
     },
     {
       "name": "сезонність_фрілансу",
-      "keywords": ["провал доходу влітку", "клієнти зникли", "пасивний дохід як страховка", "нестабільність фрілансу"]
+      "keywords": [
+        "freelance slow season",
+        "no clients this month",
+        "вигорання фрілансера",
+        "freelance income dip"
+      ]
     },
     {
       "name": "вигорання_і_продуктивність",
-      "keywords": ["вигорання від рутини", "фейкова продуктивність", "втома монтажера", "багато роботи мало сенсу"]
+      "keywords": [
+        "editor burnout",
+        "вигорання від рутини",
+        "creative burnout",
+        "working too many hours"
+      ]
     },
     {
       "name": "gumroad_проти_blacksea",
-      "keywords": ["виплати за кордон", "гривня на картку", "продаж цифрових продуктів україна", "платформа без фоп"]
+      "keywords": [
+        "selling digital products",
+        "payout took weeks",
+        "digital product income",
+        "first product sale"
+      ]
     },
     {
       "name": "внутрянка_програм",
-      "keywords": ["notion таблиця обліку", "after effects шаблон", "premiere таймлайн", "трекер правок"]
+      "keywords": [
+        "notion for freelancers",
+        "client tracker notion",
+        "premiere timeline tips",
+        "notion crm"
+      ]
     },
     {
       "name": "продукти_на_blacksea",
-      "keywords": ["пресети титрів", "саунд-дизайн для reels", "notion шаблон фрілансера", "готові інструменти монтажера"]
+      "keywords": [
+        "selling presets",
+        "sound effects pack",
+        "selling notion templates",
+        "digital assets for editors"
+      ]
     }
   ]
 }

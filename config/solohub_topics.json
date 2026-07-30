@@ -1,45 +1,95 @@
 {
-  "_comment": "Теми ротації для @TheSoloHub (X). Пропорція контенту: ~40% треди-інструкції, ~30% build in public, ~30% філософія. keywords — орієнтир кута для райтера.",
+  "_comment": "Теми ротації для @TheSoloHub (X). Пропорція контенту: ~40% треди-інструкції, ~30% build in public, ~30% філософія. keywords — орієнтир кута для райтера. МОВА ЗАПИТІВ: переважно англійська — ця ніша українською на Threads майже не існує, і пошук підсовує випадкове. Англомовні пости йдуть у seed як механіка хука, райтер перезаземлює їх у справжні факти бренду й пише українською.",
   "topics": [
     {
       "name": "ai_для_продукту",
-      "keywords": ["ai для створення продукту", "промпти для структури курсу", "claude для підприємця", "ai помічник соло"]
+      "keywords": [
+        "ai to build products",
+        "chatgpt product structure",
+        "ai for solopreneurs",
+        "claude for business"
+      ]
     },
     {
       "name": "notion_системи",
-      "keywords": ["notion дашборд для бізнесу", "notion замість команди", "система обліку в notion", "шаблон notion для запуску"]
+      "keywords": [
+        "notion dashboard",
+        "notion system business",
+        "notion replaced my team",
+        "notion second brain"
+      ]
     },
     {
       "name": "no_code_запуск",
-      "keywords": ["запустити продукт без коду", "no-code інструменти", "зібрати лендінг без розробника", "перший цифровий продукт"]
+      "keywords": [
+        "no code launch",
+        "built without code",
+        "no code product",
+        "launched without developers"
+      ]
     },
     {
       "name": "build_in_public",
-      "keywords": ["розбір воронки продажів", "чесний звіт про запуск", "провальний продукт помилки", "що не спрацювало в запуску"]
+      "keywords": [
+        "build in public",
+        "launch breakdown",
+        "funnel breakdown",
+        "what i learned launching"
+      ]
     },
     {
       "name": "відвʼязати_дохід_від_часу",
-      "keywords": ["продаж часу за гроші", "скляна стеля фрілансу", "пасивні активи замість годин", "вигорання фрілансера"]
+      "keywords": [
+        "trading time for money",
+        "quit freelancing",
+        "escape hourly work",
+        "income not tied to time"
+      ]
     },
     {
       "name": "юніт_економіка",
-      "keywords": ["юніт-економіка продукту", "cac і окупність", "як рахувати конверсію", "ціна цифрового продукту"]
+      "keywords": [
+        "unit economics",
+        "customer acquisition cost",
+        "pricing digital products",
+        "conversion rate product"
+      ]
     },
     {
       "name": "проти_hustle_культури",
-      "keywords": ["робота 14 годин це не досягнення", "hustle culture критика", "4 години роботи на день", "менше але краще"]
+      "keywords": [
+        "hustle culture is a lie",
+        "4 hour workday",
+        "working less earning more",
+        "anti hustle"
+      ]
     },
     {
       "name": "упаковка_знань",
-      "keywords": ["упакувати знання в продукт", "лід-магніт що працює", "як писати продаючий текст", "перший продукт з нуля"]
+      "keywords": [
+        "package your knowledge",
+        "turn skills into product",
+        "lead magnet that converts",
+        "productize yourself"
+      ]
     },
     {
       "name": "мінімалізм_і_фокус",
-      "keywords": ["один продукт замість десяти", "фокус замість розпорошення", "простий дизайн продає", "прибрати зайве"]
+      "keywords": [
+        "one product focus",
+        "stop building more",
+        "simple beats complex",
+        "minimal product"
+      ]
     },
     {
       "name": "запуски_без_вебінарів",
-      "keywords": ["запуск без вебінарів", "продажі через текст", "evergreen замість запуску", "автоматичні продажі"]
+      "keywords": [
+        "launch without webinar",
+        "evergreen sales",
+        "sell with text",
+        "automated sales funnel"
+      ]
     }
   ]
 }

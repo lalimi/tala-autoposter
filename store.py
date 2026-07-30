@@ -238,6 +238,59 @@ def peer_signals(hours: int = 72, limit: int = 3, prefix: str = "tala") -> list[
     return [f"@{r['source']} ({r['likes']}♥): {r['text'].strip()[:130]}" for r in rows]
 
 
+def bump_author_stats(posts: list[dict]) -> None:
+    """Accumulate each author's typical reach across scrapes.
+
+    Follower counts are not present in the scraped HTML, so "did this post do
+    unusually well" can't be measured as likes/followers. Comparing a post
+    against the author's OWN running average is a better signal anyway: 1000
+    likes on an account that always gets 1000 says nothing, while 500 on an
+    account that usually gets 50 is a real hit and its hook is worth borrowing.
+    """
+    by_author: dict[str, list[int]] = {}
+    for p in posts:
+        u = (p.get("source") or p.get("username") or "").lstrip("@")
+        if u:
+            by_author.setdefault(u, []).append(int(p.get("likes") or 0))
+    if not by_author:
+        return
+    existing = {
+        r["username"]: r
+        for r in (_req("GET", "author_stats", params={
+            "select": "username,posts_seen,likes_sum,likes_max",
+            "username": _in_list(list(by_author)),
+        }) or [])
+    }
+    rows = []
+    for u, likes in by_author.items():
+        old = existing.get(u, {})
+        rows.append({
+            "username": u,
+            "posts_seen": (old.get("posts_seen") or 0) + len(likes),
+            "likes_sum": (old.get("likes_sum") or 0) + sum(likes),
+            "likes_max": max([old.get("likes_max") or 0] + likes),
+            "updated_at": _now_iso(),
+        })
+    _req("POST", "author_stats", json=rows,
+         prefer="resolution=merge-duplicates,return=minimal")
+
+
+def author_baselines(usernames: list[str]) -> dict[str, float]:
+    """username -> mean likes seen so far. Missing/thin authors are omitted."""
+    if not usernames:
+        return {}
+    rows = _req("GET", "author_stats", params={
+        "select": "username,posts_seen,likes_sum",
+        "username": _in_list(usernames),
+    }) or []
+    out = {}
+    for r in rows:
+        n = r.get("posts_seen") or 0
+        if n >= 3:  # too few samples to call anything unusual
+            out[r["username"]] = (r.get("likes_sum") or 0) / n
+    return out
+
+
 def next_fact(prefix: str = "tala") -> dict | None:
     """The least-used active fact for this brand — real material the post is
     grounded in. The writer only ever had three hardcoded numbers (447 грн, 94
@@ -262,14 +315,14 @@ def mark_fact_used(fact_id: int) -> None:
 
 
 def top_seed(keywords: list[str], hours: int = 168, prefix: str = "tala") -> dict | None:
-    """The single highest-reach real scraped post on this topic, FULL text — the
-    seed the writer translates/adapts. Prefers a keyword-matched post; falls back
-    to the top peer post. Returns None when nothing has been scraped yet (the
-    writer then generates from the topic + angle instead)."""
+    """The scraped post most worth adapting, FULL text. Ranked by how far it beat
+    its own author's usual reach rather than by raw likes: sorting by likes alone
+    put big accounts on top, whose numbers say nothing about whether the hook
+    worked. Authors with no history yet fall back to raw likes."""
     def _fetch(params):
         params["scraped_at"] = f"gte.{_cutoff_iso(hours)}"
         params["order"] = "likes.desc"
-        params["limit"] = 1
+        params["limit"] = 25
         return _req("GET", f"{prefix}_signals", params=params) or []
 
     rows = []
@@ -278,11 +331,23 @@ def top_seed(keywords: list[str], hours: int = 168, prefix: str = "tala") -> dic
                        "keyword": _in_list(keywords)})
     if not rows:
         rows = _fetch({"select": "text,likes,source", "kind": "eq.peer"})
-    if not rows or not (rows[0].get("text") or "").strip():
+    rows = [r for r in rows if (r.get("text") or "").strip()]
+    if not rows:
         return None
-    r = rows[0]
-    return {"text": r["text"].strip(), "likes": r.get("likes") or 0,
-            "source": r.get("source") or ""}
+
+    base = author_baselines([(r.get("source") or "").lstrip("@") for r in rows])
+
+    def lift(r):
+        likes = r.get("likes") or 0
+        avg = base.get((r.get("source") or "").lstrip("@"))
+        # No baseline yet -> rank on likes alone, but below anything with a
+        # measured lift, so vetted outliers win.
+        return (likes / avg) if avg else 0.0
+
+    best = max(rows, key=lambda r: (lift(r), r.get("likes") or 0))
+    return {"text": best["text"].strip(), "likes": best.get("likes") or 0,
+            "source": best.get("source") or "",
+            "lift": round(lift(best), 1)}
 
 
 def replace_signals(kind: str, rows: list[dict], prefix: str = "tala") -> None:

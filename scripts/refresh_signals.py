@@ -97,6 +97,12 @@ def main() -> None:
     data = fetch_all(all_keywords, accounts, max_total=MAX_TOTAL)
 
     kw_posts = data.get("keywords", [])
+    # Accumulate per-author reach so an outlier can later be told apart from a
+    # big account's ordinary day.
+    try:
+        store.bump_author_stats(kw_posts + data.get("profiles", []))
+    except Exception as exc:  # never fail a scrape over bookkeeping
+        log.warning("author stats not updated: %s", exc)
     # Peer posts (tracked accounts) are brand-agnostic hook/structure orientation.
     peer_rows = _signal_rows(data.get("profiles", []), "peer")
 

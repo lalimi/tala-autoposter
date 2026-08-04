@@ -1,94 +1,93 @@
 {
-  "_comment": "Теми ротації для @TheSoloHub (X). Пропорція контенту: ~40% треди-інструкції, ~30% build in public, ~30% філософія. keywords — орієнтир кута для райтера. МОВА ЗАПИТІВ: переважно англійська — ця ніша українською на Threads майже не існує, і пошук підсовує випадкове. Англомовні пости йдуть у seed як механіка хука, райтер перезаземлює їх у справжні факти бренду й пише українською.",
+  "_comment": "Теми @TheSoloHub. Акаунт із нульовою аудиторією росте на КОРИСТІ, не на особистих історіях: навчальні треди про маркетинг і продажі — найшвидший спосіб набрати підписників у X. Кожен пост має лишати щось, що можна застосувати сьогодні. Запити англійською — там ця ніша й живе.",
   "topics": [
     {
-      "name": "ai_для_продукту",
+      "name": "продажі_через_x",
       "keywords": [
-        "ai to build products",
-        "chatgpt product structure",
-        "ai for solopreneurs",
-        "claude for business"
+        "how to sell on twitter",
+        "grow on x",
+        "threads growth",
+        "selling on social"
       ]
     },
     {
-      "name": "notion_системи",
+      "name": "копірайтинг_і_хуки",
       "keywords": [
-        "notion dashboard",
-        "notion system business",
-        "notion replaced my team",
-        "notion second brain"
+        "copywriting hooks",
+        "how to write hooks",
+        "first line matters",
+        "content that converts"
       ]
     },
     {
-      "name": "no_code_запуск",
+      "name": "воронка_і_конверсія",
       "keywords": [
-        "no code launch",
-        "built without code",
-        "no code product",
-        "launched without developers"
+        "sales funnel",
+        "conversion rate optimization",
+        "landing page tips",
+        "funnel breakdown"
       ]
     },
     {
-      "name": "build_in_public",
+      "name": "лід_магніти",
       "keywords": [
-        "build in public",
-        "launch breakdown",
-        "funnel breakdown",
-        "what i learned launching"
+        "lead magnet ideas",
+        "free product to paid",
+        "email list building",
+        "freebie that converts"
       ]
     },
     {
-      "name": "відвʼязати_дохід_від_часу",
+      "name": "ціноутворення",
       "keywords": [
-        "trading time for money",
-        "quit freelancing",
-        "escape hourly work",
-        "income not tied to time"
+        "how to price digital product",
+        "pricing strategy",
+        "charge more",
+        "price anchoring"
       ]
     },
     {
-      "name": "юніт_економіка",
+      "name": "перший_продукт",
+      "keywords": [
+        "first digital product",
+        "validate product idea",
+        "mvp product",
+        "what to sell online"
+      ]
+    },
+    {
+      "name": "ai_в_маркетингу",
+      "keywords": [
+        "ai for marketing",
+        "chatgpt for content",
+        "ai copywriting",
+        "automate content"
+      ]
+    },
+    {
+      "name": "аудиторія_з_нуля",
+      "keywords": [
+        "grow from zero followers",
+        "first 1000 followers",
+        "audience building",
+        "content strategy"
+      ]
+    },
+    {
+      "name": "аналітика_і_цифри",
       "keywords": [
         "unit economics",
         "customer acquisition cost",
-        "pricing digital products",
-        "conversion rate product"
+        "metrics that matter",
+        "track what works"
       ]
     },
     {
-      "name": "проти_hustle_культури",
+      "name": "помилки_новачків",
       "keywords": [
-        "hustle culture is a lie",
-        "4 hour workday",
-        "working less earning more",
-        "anti hustle"
-      ]
-    },
-    {
-      "name": "упаковка_знань",
-      "keywords": [
-        "package your knowledge",
-        "turn skills into product",
-        "lead magnet that converts",
-        "productize yourself"
-      ]
-    },
-    {
-      "name": "мінімалізм_і_фокус",
-      "keywords": [
-        "one product focus",
-        "stop building more",
-        "simple beats complex",
-        "minimal product"
-      ]
-    },
-    {
-      "name": "запуски_без_вебінарів",
-      "keywords": [
-        "launch without webinar",
-        "evergreen sales",
-        "sell with text",
-        "automated sales funnel"
+        "mistakes selling online",
+        "why products dont sell",
+        "beginner mistakes business"
       ]
     }
   ]

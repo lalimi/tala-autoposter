@@ -64,7 +64,8 @@ BLACKSEA_CHAIN_PROBABILITY = float(
 )
 
 # @TheSoloHub (X): content mix is ~40% how-to threads, so chains are common.
-SOLOHUB_CHAIN_PROBABILITY = float(_env("SOLOHUB_CHAIN_PROBABILITY", "0.45") or "0.45")
+# Educational threads are the growth format on X, so most posts are chains.
+SOLOHUB_CHAIN_PROBABILITY = float(_env("SOLOHUB_CHAIN_PROBABILITY", "0.6") or "0.6")
 # X is billed per request, so cadence here is a budget decision, not a reach one.
 # At ~$0.05 per post all-in (writes incl. chain parts, the odd link post, one
 # metrics read) a randomised 8-10h gap lands ~2.7 posts/day ≈ $4/month, which
@@ -72,10 +73,13 @@ SOLOHUB_CHAIN_PROBABILITY = float(_env("SOLOHUB_CHAIN_PROBABILITY", "0.45") or "
 # the balance up: 2h15m-2h50m like the Threads brands would cost ~$15/month.
 SOLOHUB_MIN_GAP_MINUTES = int(_env("SOLOHUB_MIN_GAP_MINUTES", "480") or "480")
 SOLOHUB_MAX_GAP_MINUTES = int(_env("SOLOHUB_MAX_GAP_MINUTES", "600") or "600")
-SOLOHUB_SALES_PROBABILITY = float(_env("SOLOHUB_SALES_PROBABILITY", "0.3") or "0.3")
+# An account with no audience should be earning attention, not pitching: fewer
+# sales posts also keeps the bill down, since a post carrying a URL costs ~$0.20
+# against ~$0.015.
+SOLOHUB_SALES_PROBABILITY = float(_env("SOLOHUB_SALES_PROBABILITY", "0.15") or "0.15")
 # Most sales posts point at the bio: on X a post with a URL costs ~$0.20 vs
 # ~$0.015, and links get less reach. The lead magnet lives in the bio anyway.
-SOLOHUB_BIO_CTA_RATIO = float(_env("SOLOHUB_BIO_CTA_RATIO", "0.7") or "0.7")
+SOLOHUB_BIO_CTA_RATIO = float(_env("SOLOHUB_BIO_CTA_RATIO", "0.85") or "0.85")
 # Laconic by design; X Premium would allow 25 000.
 SOLOHUB_MAX_CHARS = int(_env("SOLOHUB_MAX_CHARS", "400") or "400")
 

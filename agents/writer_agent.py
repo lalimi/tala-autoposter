@@ -486,7 +486,13 @@ class WriterAgent:
         client = self._client()
         text = self._call(client, [{"role": "user", "content": user_message}],
                           max_tokens=1500)
-        return self._trim(text)
+        # The model sometimes writes the comment AND appends a bare SKIP line.
+        # The caller only checks the start of the string, so that marker would
+        # have been published verbatim at the end of a real reply.
+        lines = [ln for ln in (text or "").splitlines()
+                 if ln.strip().upper().strip(".!") != "SKIP"]
+        text = "\n".join(lines).strip()
+        return self._trim(text) if text else "SKIP"
 
     # Traits that read as AI-written and should be edited out.
     _DESLOP_RULES = (

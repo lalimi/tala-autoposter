@@ -124,10 +124,12 @@ def main() -> None:
         log.warning("scraper returned nothing — keeping existing signals (no wipe)")
         return
 
+    relevant_by_brand: dict[str, list] = {}
     # Write per brand: its own keyword posts, plus the shared peer batch.
     for brand, kws in brand_kws.items():
         kset = set(kws)
         mine = [p for p in kw_posts if p.get("keyword") in kset]
+        raw_mine = list(mine)
         # Keyword search is loose — it has handed the writer posts about mortgage
         # rates and politics. Score the strongest candidates against the brand's
         # niche and drop the ones that only matched a word.
@@ -137,6 +139,11 @@ def main() -> None:
             before = len(mine)
             mine = filter_relevant(brand.niche, mine)
             log.info("[%s] relevance: %d -> %d candidates", brand.key, before, len(mine))
+        # Comment targets come from the SAME vetted list: they used to be built
+        # from raw scrape output, so 87% of them were off-niche and the writer
+        # SKIPped them — each skip burns a target permanently and the queue
+        # drained without ever landing a comment.
+        relevant_by_brand[brand.key] = mine
         kw_rows = _signal_rows(mine, "keyword")
         # Only this brand's own donors, not everyone's.
         mine_names = {f"@{a}" for a in brand_accounts.get(brand, [])}
@@ -160,8 +167,8 @@ def main() -> None:
         targets = [
             {"thread_id": p["id"], "username": p.get("source"), "text": p.get("text", ""),
              "url": p.get("url"), "likes": p.get("likes", 0), "keyword": p.get("keyword")}
-            for p in kw_posts
-            if p.get("id") and p.get("text") and p.get("keyword") in kset
+            for p in relevant_by_brand.get(brand.key, [])
+            if p.get("id") and p.get("text")
             and (p.get("source") or "").lstrip("@").lower() not in settings.OWN_HANDLES
         ]
         if targets:

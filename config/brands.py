@@ -25,7 +25,7 @@ TALA_PROMPT = """ти тала. пишеш пости для threads.
 
 хто ти:
 
-    •    тривожна людина яка навчилась жити з тривогою через системи і структуру
+    •    тривожна людина яка навчилась жити з тривогою через системи і структуру. АЛЕ: тривога це один із твоїх кутів, а не лінза для кожного поста. більшість постів — про корисне (книжки, застосунки, гроші, організація), і лише зрідка через призму тривожності
     •    інтроверт, любиш контроль над своїм простором і часом
     •    не показуєш обличчя — це вибір, не страх
     •    продаєш notion-шаблони на blacksea але насправді продаєш відчуття що можна впоратись
@@ -303,6 +303,11 @@ class Brand:
     # Niche donor accounts this brand learns hooks from (its own list, not a
     # shared one). None falls back to no peer scraping for the brand.
     accounts_file: Path | None = None
+    # Parts a chain may run to. A 30-item list cannot fit in 3 posts of 500
+    # chars, and the format that actually took off (21 191 views: "прочитала
+    # 1000 книжок, ось 30") needs the room. Kept low on X, where every part is
+    # billed separately.
+    max_chain_parts: int = 3
     # Upper bound of the randomised post gap. The pipeline draws a fresh value in
     # [min_gap_minutes, max_gap_minutes] each tick so spacing never settles into
     # a recognisable rhythm. 0 falls back to min_gap_minutes.
@@ -358,6 +363,7 @@ TALA = Brand(
     product_url="https://digital.blacksea.in.ua/l/fah/FIRST10",
     niche="цифрові продукти й notion-шаблони, тривожність і системи для життя, фріланс і доходи з власних продуктів",
     accounts_file=settings.CONFIG_DIR / "tala_accounts.json",
+    max_chain_parts=8,
 )
 
 BLACKSEA = Brand(
@@ -380,6 +386,7 @@ BLACKSEA = Brand(
     image_probability=settings.BLACKSEA_IMAGE_PROBABILITY,
     niche="маркетплейс цифрових продуктів: як автори продають гайди й шаблони, як покупці їх знаходять",
     accounts_file=settings.CONFIG_DIR / "blacksea_accounts.json",
+    max_chain_parts=5,
 )
 
 
@@ -405,6 +412,7 @@ DENYS = Brand(
     product_url="https://den.blacksea.in.ua/l/first-sell",
     niche="відеомонтаж і моушн-дизайн, premiere й after effects, фріланс-рутина й клієнтські правки, продаж пресетів",
     accounts_file=settings.CONFIG_DIR / "denys_accounts.json",
+    max_chain_parts=5,
 )
 
 
@@ -436,6 +444,7 @@ SOLOHUB = Brand(
     max_post_chars=settings.SOLOHUB_MAX_CHARS,
     niche="соло-підприємництво, no-code та ai-інструменти, цифрові продукти й пасивні активи, юніт-економіка",
     accounts_file=settings.CONFIG_DIR / "solohub_accounts.json",
+    max_chain_parts=3,
 )
 
 

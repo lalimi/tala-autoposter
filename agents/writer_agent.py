@@ -41,7 +41,11 @@ class WriterAgent:
     # no conclusion", "a detail you couldn't invent") and produced posts about
     # kettles and cold tea that nobody in this niche writes.
     HOOK_TYPES = (
-        "нумерований список: заголовок-обіцянка, далі 3-7 коротких пунктів "
+        "ВЕЛИКИЙ СПИСОК: заявка на досвід у першому рядку («прочитала понад "
+        "1000 книжок», «зібрала 14 продуктів») + обіцянка («ось 20 з них») + "
+        "далі 15-30 пронумерованих пунктів, кожен одним коротким рядком. це "
+        "формат, який дав акаунту 21 191 перегляд проти звичайних 200-300",
+        "нумерований список: заголовок-обіцянка, далі 5-10 коротких пунктів "
         "з нового рядка, кожен конкретний",
         "покрокова інструкція «як зробити X за N кроків», кроки пронумеровані",
         "прямий результат: що вийшло, з конкретною цифрою, без розгону",
@@ -234,7 +238,11 @@ class WriterAgent:
                 f"дотична тема з твоєї ротації: {brief['keyword']}\n"
                 f"кут: {brief['angle']}\n\n"
                 "правила адаптації:\n"
-                "- тримайся близько до ХУКА і структури джерела, це те що спрацювало\n"
+                "- копіюй СТРУКТУРУ джерела якомога ближче: якщо там список на "
+                "20 пунктів — роби список на 20 пунктів, якщо покрокова "
+                "інструкція — роби покрокову, якщо питання до аудиторії — "
+                "став питання. міняється зміст, не форма\n"
+                "- тримайся близько до ХУКА джерела, це те що спрацювало\n"
                 "- переклади й адаптуй ідею українською, природно, не дослівний переклад\n"
                 "- ВСІ особисті факти, цифри, суми, продукти замінюй на СВОЇ справжні "
                 "(зі свого системного промпта). чужі цифри й claims не переносити\n"
@@ -390,7 +398,8 @@ class WriterAgent:
         """Write a checklist / mini-guide as a short post chain. Returns the parts
         (each <=500 chars). The pipeline publishes them as a Threads reply-chain.
         Length is capped by settings.CHAIN_MAX_PARTS (3 on Vercel, more on a VPS)."""
-        max_parts = max_parts or settings.CHAIN_MAX_PARTS
+        max_parts = (max_parts or getattr(self.brand, "max_chain_parts", 0)
+                     or settings.CHAIN_MAX_PARTS)
         steps = max(1, max_parts - 1)  # parts after the hook
         recent_topics = memory.get_recent_topics()
         recent_openings = memory.recent_openings()

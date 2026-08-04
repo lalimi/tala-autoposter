@@ -1,30 +1,58 @@
 {
+  "_comment": "Теми ротації @tala.sav. Широкі теми з масовим попитом ідуть першими: пост «прочитала 1000 книжок, ось 30» дав 21 191 перегляд, тоді як вузький пост-думка про продажі — 19. Тривожність тепер одна тема з багатьох, а не лінза для кожного поста (вона була у 38% постів). Запити: комерційні англійською, побутові українською.",
   "topics": [
     {
-      "name": "гроші_доходи",
+      "name": "книжки_і_навчання",
       "keywords": [
-        "sold my first digital product",
-        "digital product income",
-        "made my first sale online",
-        "passive income from templates"
+        "книжки які варто прочитати",
+        "що почитати",
+        "book recommendations",
+        "books that changed my life"
       ]
     },
     {
-      "name": "тривожність",
+      "name": "застосунки_інструменти",
       "keywords": [
-        "тривожність як жити",
-        "тривога продуктивність",
-        "панічна атака що робити",
-        "як заспокоїти тривогу"
+        "корисні застосунки",
+        "apps i use daily",
+        "notion template",
+        "must have apps"
+      ]
+    },
+    {
+      "name": "організація_життя",
+      "keywords": [
+        "як все встигати",
+        "організація простору",
+        "how to organize your life",
+        "планування тижня"
+      ]
+    },
+    {
+      "name": "гроші_побут",
+      "keywords": [
+        "як розподіляти гроші",
+        "бюджет на місяць",
+        "money habits",
+        "як почати відкладати"
+      ]
+    },
+    {
+      "name": "гроші_доходи",
+      "keywords": [
+        "digital product income",
+        "sold my first digital product",
+        "passive income",
+        "онлайн заробіток"
       ]
     },
     {
       "name": "notion_шаблони",
       "keywords": [
         "notion template",
-        "notion template sales",
         "selling notion templates",
-        "notion second brain"
+        "notion dashboard",
+        "notion для життя"
       ]
     },
     {
@@ -32,17 +60,16 @@
       "keywords": [
         "digital product launch",
         "how i sell digital products",
-        "first digital product",
-        "product launch solo"
+        "перший цифровий продукт"
       ]
     },
     {
-      "name": "фріланс_робота",
+      "name": "робота_і_фріланс",
       "keywords": [
-        "вигорання фрілансера",
+        "вигорання на роботі",
         "фріланс україна",
         "freelancer burnout",
-        "quit freelancing for products"
+        "як просити підвищення"
       ]
     },
     {
@@ -50,19 +77,26 @@
       "keywords": [
         "трекер звичок",
         "як втримати звичку",
-        "habit tracker notion",
+        "habit tracker",
         "система замість мотивації"
       ]
     },
     {
-      "name": "ранок_рутина",
+      "name": "ранок_і_сон",
       "keywords": [
         "ранкова рутина",
         "як прокидатись раніше",
-        "morning routine that works",
-        "ранок без поспіху"
+        "як налагодити сон",
+        "morning routine"
+      ]
+    },
+    {
+      "name": "тривожність",
+      "keywords": [
+        "тривожність як жити",
+        "як заспокоїти тривогу",
+        "панічна атака що робити"
       ]
     }
-  ],
-  "_comment": " МОВА ЗАПИТІВ: комерційні теми — англійською, бо українського контенту в цій ніші на Threads майже нема і пошук підсовує випадкове; емоційні/побутові — українською, там жива укр. спільнота (перевірено на «тривожність»). Англомовні пости йдуть у seed як механіка хука, райтер перезаземлює їх у справжні факти бренду українською."
+  ]
 }

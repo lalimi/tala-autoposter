@@ -178,6 +178,12 @@ def run_metrics(brand: Brand = TALA, **_) -> int:
         except Exception as exc:  # one bad id shouldn't stop the batch
             logger.warning("[%s] metrics failed | post %s | %s",
                            brand.key, p["id"], exc)
+            # A 400 here means the post is gone or too old for insights; it will
+            # never succeed, so stamp it instead of retrying it on every run.
+            if "400" in str(exc):
+                store.save_metrics(p["id"], {}, brand.table_prefix)
+                logger.info("[%s] post %s retired from the metrics queue",
+                            brand.key, p["id"])
     return updated
 
 

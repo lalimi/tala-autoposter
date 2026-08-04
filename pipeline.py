@@ -223,7 +223,17 @@ def run_comment(
         if not candidate:
             logger.info("[%s] no comment targets (run the scraper)", brand.key)
             return None
-        draft = writer.run_comment(candidate)
+        try:
+            draft = writer.run_comment(candidate)
+        except Exception as exc:
+            # The target's own text goes into the prompt, and scraped posts
+            # include war, politics and other material the model's content
+            # filter rejects outright. That was killing the whole comment run —
+            # and commenting is the only growth lever these accounts have.
+            logger.info("[%s] candidate unusable (%s) -> @%s",
+                        brand.key, str(exc)[:60], candidate.get("username"))
+            store.mark_comment_failed(candidate["id"], brand.table_prefix)
+            continue
         if draft and not draft.strip().upper().startswith("SKIP"):
             target, text = candidate, draft
             break

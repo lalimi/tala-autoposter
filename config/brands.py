@@ -320,6 +320,10 @@ class Brand:
     # 1000 книжок, ось 30") needs the room. Kept low on X, where every part is
     # billed separately.
     max_chain_parts: int = 3
+    # LISTICLE format: hook naming a number, then one short item per post. Checked
+    # before the chain roll, so this is the absolute share of posts in that shape.
+    list_probability: float = 0.0
+    max_list_items: int = 0   # items after the hook; 0 = settings.LIST_MAX_ITEMS
     # Upper bound of the randomised post gap. The pipeline draws a fresh value in
     # [min_gap_minutes, max_gap_minutes] each tick so spacing never settles into
     # a recognisable rhythm. 0 falls back to min_gap_minutes.
@@ -376,6 +380,7 @@ TALA = Brand(
     niche="цифрові продукти й notion-шаблони, тривожність і системи для життя, фріланс і доходи з власних продуктів",
     accounts_file=settings.CONFIG_DIR / "tala_accounts.json",
     max_chain_parts=8,
+    list_probability=settings.TALA_LIST_PROBABILITY,
 )
 
 BLACKSEA = Brand(
@@ -399,6 +404,7 @@ BLACKSEA = Brand(
     niche="маркетплейс цифрових продуктів: як автори продають гайди й шаблони, як покупці їх знаходять",
     accounts_file=settings.CONFIG_DIR / "blacksea_accounts.json",
     max_chain_parts=5,
+    list_probability=settings.BLACKSEA_LIST_PROBABILITY,
 )
 
 
@@ -425,6 +431,7 @@ DENYS = Brand(
     niche="відеомонтаж і моушн-дизайн, premiere й after effects, фріланс-рутина й клієнтські правки, продаж пресетів",
     accounts_file=settings.CONFIG_DIR / "denys_accounts.json",
     max_chain_parts=5,
+    list_probability=settings.DENYS_LIST_PROBABILITY,
 )
 
 
@@ -457,6 +464,7 @@ SOLOHUB = Brand(
     niche="соло-підприємництво, no-code та ai-інструменти, цифрові продукти й пасивні активи, юніт-економіка",
     accounts_file=settings.CONFIG_DIR / "solohub_accounts.json",
     max_chain_parts=4,
+    list_probability=settings.SOLOHUB_LIST_PROBABILITY,
 )
 
 

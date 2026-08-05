@@ -445,6 +445,78 @@ class WriterAgent:
         parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
         return [self._trim(p) for p in parts][:max_parts]
 
+    def run_list(self, brief: dict, memory, max_items: int | None = None,
+                 sell: bool = False, hook: str | None = None,
+                 via_bio: bool = False) -> list[str]:
+        """Write a LISTICLE thread: a hook that names a number, then one short
+        item per post. This is the shape that took off (21 191 views on
+        "прочитала 1000 книжок, ось 30") — many more parts than a chain, and each
+        item is a single line rather than a paragraph.
+
+        Returns [hook, item, item, ...]. The hook's number is rewritten to match
+        the items actually produced, so the promise never overstates delivery."""
+        max_items = (max_items or getattr(self.brand, "max_list_items", 0)
+                     or settings.LIST_MAX_ITEMS)
+        recent_topics = memory.get_recent_topics()
+        recent_openings = memory.recent_openings()
+        user_message = (
+            "напиши ЛІСТИКЛ-ТРЕД для threads: хук із числом, далі кожен пункт "
+            "окремим постом.\n\n"
+            f"тема: {brief['keyword']}\n"
+            f"сигнали: {brief['trend_signals']}\n"
+            f"кут: {brief['angle']}\n\n"
+            f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n"
+            f"{self._fact_block(brief.get('fact'))}"
+            f"{self._anti_repeat(recent_openings)}"
+            f"{self._hook_block(hook)}"
+            f"{self._sell_block(sell, via_bio)}\n"
+            "формат лістикла:\n"
+            f"- 1-й пост: ХУК. коротко, ≤3 рядки. має містити число {max_items} "
+            "і чітку обіцянку, що людина отримає. хук працює так: "
+            "спостереження або досвід + число + двокрапка. "
+            "приклади структури (не копіювати дослівно, це англомовні зразки): "
+            "«прочитала понад 1000 книжок. якщо хочеш змінити життя, почни з цих 30:», "
+            "«найстарішому в нашій групі 71. він живе за 8 правилами. записала кожне:», "
+            "«твоя дитина не нудьгує. їй просто не давали справжньої справи. "
+            f"{max_items} речей, які можна зробити разом:»\n"
+            f"- далі РІВНО {max_items} постів: по одному пункту в кожному.\n"
+            "- КОЖЕН пункт — це один короткий рядок. одна закінчена думка, "
+            "конкретна й корисна. без вступів, без пояснень на абзац.\n"
+            "- нумеруй пункти: «1.», «2.», … це список, номер допомагає читати.\n"
+            "- пункти не повторюють один одного і не переказують хук.\n"
+            "- дотримуйся голосу бренду з системного промпта, тільки українською.\n"
+            f"- кожен пост максимум {self.max_chars} символів, але пункти "
+            "мають бути значно коротші.\n"
+            "- розділяй пости рядком лише з трьох дефісів: ---\n"
+            "- поверни лише пости й роздільники, без пояснень."
+        )
+        client = self._client()
+        raw = self._call(
+            client, [{"role": "user", "content": user_message}], max_tokens=4000
+        )
+        raw = self._apply_guards(
+            client, raw, user_message, recent_openings,
+            sell=sell, via_bio=via_bio, is_chain=True,
+        )
+        parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
+        parts = [self._trim(p) for p in parts][: max_items + 1]
+        if len(parts) < 3:  # not a list — let the caller fall back
+            return parts
+        return [self._fix_promised_count(parts[0], len(parts) - 1)] + parts[1:]
+
+    @staticmethod
+    def _fix_promised_count(hook: str, actual: int) -> str:
+        """Make the number in the hook match the items actually written, so a
+        promised 12 never arrives as 9. Rewrites the LAST number in the hook,
+        which is the one naming the list ("прочитала 1000 книжок, ось 30")."""
+        matches = list(re.finditer(r"\d+", hook))
+        if not matches:
+            return hook
+        m = matches[-1]
+        if m.group() == str(actual):
+            return hook
+        return hook[: m.start()] + str(actual) + hook[m.end():]
+
     def run_comment(self, target: dict) -> str:
         """Write a short, natural reply to someone else's post, in the brand
         voice. Reactive and relevant — no pitch, no link, no CTA."""

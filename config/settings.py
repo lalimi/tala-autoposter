@@ -146,6 +146,24 @@ DENYS_IMAGE_PROBABILITY = float(_env("DENYS_IMAGE_PROBABILITY", "0") or "0")
 # (VPS) with no time cap, set CHAIN_MAX_PARTS=5 in the env for richer guides.
 CHAIN_MAX_PARTS = int(_env("CHAIN_MAX_PARTS", "3") or "3")
 
+# LISTICLE threads ("прочитала 1000 книжок, ось 30" -> 21 191 views): a hook that
+# names a number, then one short item per post. Distinct from a chain — many more
+# parts, each a single line rather than a paragraph.
+# Items per list (excluding the hook). Each Threads round-trip is ~15s, so 12
+# items ≈ 3 min — fine on the VPS (unit TimeoutStartSec=900), too slow for Vercel.
+LIST_MAX_ITEMS = int(_env("LIST_MAX_ITEMS", "12") or "12")
+
+# Share of runs that publish a listicle instead of a chain/single. Checked first,
+# so this is the absolute share of posts in that format.
+TALA_LIST_PROBABILITY = float(_env("TALA_LIST_PROBABILITY", "0.25") or "0.25")
+BLACKSEA_LIST_PROBABILITY = float(
+    _env("BLACKSEA_LIST_PROBABILITY", "0.15") or "0.15"
+)
+SOLOHUB_LIST_PROBABILITY = float(
+    _env("SOLOHUB_LIST_PROBABILITY", "0.25") or "0.25"
+)
+DENYS_LIST_PROBABILITY = float(_env("DENYS_LIST_PROBABILITY", "0.15") or "0.15")
+
 # Threads Graph API (PublisherAgent) — publishes directly, no Postiz.
 # Long-lived token for the @tala.sav account (60-day; refresh before expiry).
 # Seeded into Supabase tala_token; this env var is only a first-run fallback.

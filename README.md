@@ -18,6 +18,19 @@ Everything brand-specific lives in `config/brands.py` (a `Brand` is threaded
 through the pipeline and every agent). Adding a third account = one entry there
 + a topics file + an env token + three Supabase tables — no agent code changes.
 
+**Post formats.** Each tick rolls a format in this order:
+
+| Format | Shape | Knob |
+|---|---|---|
+| `list` | hook naming a number, then **one short item per post** (`1.`, `2.`, …) | `*_LIST_PROBABILITY`, `LIST_MAX_ITEMS` (12) |
+| `chain` | checklist / mini-guide, a paragraph per part | `*_CHAIN_PROBABILITY`, `max_chain_parts` |
+| `single` | one standalone post | whatever is left over |
+
+The listicle is the shape that took off (21 191 views on "прочитала 1000 книжок,
+ось 30"), so its roll comes first and its probability is the absolute share of
+posts in that format. The number promised in the hook is rewritten to match the
+items actually produced, so a promised 12 never arrives as 9.
+
 **Cadence is self-throttling.** GitHub's scheduled crons are unreliable (they
 delay and silently drop runs at the top of the hour), so each workflow fires
 every 30 min and the endpoint *decides* whether to post: it skips unless the

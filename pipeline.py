@@ -4,9 +4,11 @@ cleanly in BOTH the local scheduler (main.py) and the Vercel handlers
 
 MemoryAgent -> ParserAgent -> WriterAgent -> MemoryAgent -> PublisherAgent
 
-Each run is driven by a Brand (voice, topics, tables, token, cadence). Tala
-mostly publishes multi-post CHAINS (checklists / guides); blacksea mostly single
-friendly posts. Controlled by brand.chain_probability.
+Each run is driven by a Brand (voice, topics, tables, token, cadence). Three post
+formats, rolled in this order:
+  * list   — hook naming a number, then one short item per post (brand.list_probability)
+  * chain  — checklist / mini-guide, a paragraph per part (brand.chain_probability)
+  * single — one standalone post (whatever is left over)
 """
 from __future__ import annotations
 
@@ -85,9 +87,20 @@ def run_pipeline(
     logger.info("[%s] hook: %s | opening: %s",
                 brand.key, hook[:38], opening[:38])
 
-    # Chain vs single is brand-tuned (Tala leans chains, blacksea leans singles).
+    # Format is brand-tuned. The LISTICLE roll comes first because it's the shape
+    # that actually took off (21 191 views), so its probability is the absolute
+    # share of posts in that format rather than a slice of what chains leave over.
     parts = None
-    if random.random() < brand.chain_probability:
+    fmt = "chain"
+    if brand.list_probability and random.random() < brand.list_probability:
+        parts = writer.run_list(brief, memory, sell=sell, hook=hook,
+                                via_bio=via_bio)
+        if len(parts) < 3:
+            parts = None  # not enough items to read as a list -> fall through
+        else:
+            fmt = "list"
+
+    if parts is None and random.random() < brand.chain_probability:
         parts = writer.run_chain(brief, memory, sell=sell, hook=hook,
                                  via_bio=via_bio, opening=opening)
         if len(parts) < 2:
@@ -95,7 +108,6 @@ def run_pipeline(
 
     if parts:
         post_text = "\n\n---\n\n".join(parts)
-        fmt = "chain"
     else:
         post_text = writer.run(brief, memory, sell=sell, hook=hook,
                                via_bio=via_bio, opening=opening)

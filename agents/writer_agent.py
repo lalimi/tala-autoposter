@@ -178,6 +178,51 @@ class WriterAgent:
                 return True
         return False
 
+    # A number only counts as a brand statistic when it carries a money/sales
+    # unit. Plain integers ("7 речей", "12 сторінок", "2026") are structural and
+    # must not trip the guard, or every list post would be regenerated.
+    _STAT_UNIT_RE = re.compile(
+        r"(?P<num>\d[\d\s ]*\d|\d)\s*"
+        # one optional adjective in between: "993 безкоштовних завантажень"
+        r"(?:[а-яіїєґʼ']+\s+)?"
+        r"(?P<unit>грн|₴|%|к\b|тис\b|продаж\w*|завантаж\w*|оплат\w*|"
+        r"платеж\w*|покуп\w*|підписник\w*)",
+        re.IGNORECASE)
+
+    @classmethod
+    def _stat_numbers(cls, text: str) -> set[str]:
+        out = set()
+        for m in cls._STAT_UNIT_RE.finditer(text or ""):
+            n = re.sub(r"[\s ]", "", m.group("num"))
+            if n:
+                out.add(n)
+        return out
+
+    @classmethod
+    def _recycled_stats(cls, text: str, fact: dict | None,
+                        recent_texts: list[str]) -> set[str]:
+        """Figures the draft pulled from older posts instead of from its own fact.
+
+        The prompt hardcoded 447/94/60к as "твої справжні цифри", so the model
+        reached for them regardless of which fact it was handed: 8 of 70 posts
+        opened on 447 грн, and those were the weakest in the account (95-228
+        views against a 364 median the same day). Removing them from the prompt
+        is necessary but not sufficient — earlier prompt-level bans here were
+        ignored for days, so the rule is enforced on the draft.
+        """
+        drafted = cls._stat_numbers(text)
+        if not drafted:
+            return set()
+        fact_text = " ".join(filter(None, [
+            (fact or {}).get("text"), (fact or {}).get("detail")]))
+        # Any digit run in the fact is fair game — it may be written there
+        # without a unit ("квітень 2026 — 1027 продажів" vs a bare "1027").
+        allowed = set(re.findall(r"\d+", fact_text))
+        seen: set[str] = set()
+        for t in recent_texts:
+            seen |= cls._stat_numbers(t)
+        return (drafted & seen) - allowed
+
     @staticmethod
     def _anti_repeat(openings: list[str]) -> str:
         """Feeding 12 FULL recent posts was a wall the model ignored — openings
@@ -308,6 +353,7 @@ class WriterAgent:
         text = self._apply_guards(
             client, text, user_message, recent_openings,
             sell=sell, via_bio=via_bio,
+            fact=brief.get("fact"), recent_texts=memory.recent_post_texts(),
         )
 
         # Last resort: hard-trim on a paragraph/line boundary so we never 400.
@@ -319,7 +365,9 @@ class WriterAgent:
 
     def _apply_guards(self, client, text: str, user_message: str,
                       recent_openings: list[str], *, sell: bool = False,
-                      via_bio: bool = False, is_chain: bool = False) -> str:
+                      via_bio: bool = False, is_chain: bool = False,
+                      fact: dict | None = None,
+                      recent_texts: list[str] | None = None) -> str:
         """Every code-level check a draft must pass, for singles AND chains.
 
         These lived inline in run() only, so chains — 90% of Tala's output — went
@@ -350,6 +398,24 @@ class WriterAgent:
                 "входом: інша сцена, інша деталь, інші цифри або зовсім без "
                 "цифр. тему й голос збережи. поверни лише текст."
             )
+
+        # Figures recycled from older posts, rather than taken from this post's
+        # own fact — the single biggest driver of "все однотипне".
+        recycled = self._recycled_stats(text, fact, recent_texts or [])
+        if recycled:
+            logger.info("draft recycled stat(s) %s from older posts — regenerating",
+                        ", ".join(sorted(recycled)))
+            nums = ", ".join(sorted(recycled))
+            text = regen(
+                f"цифри «{nums}» вже були в попередніх постах — читач бачить те "
+                "саме число вкотре. перепиши, спираючись ВИКЛЮЧНО на цифри з "
+                "блоку «ФАКТ ДЛЯ ЦЬОГО ПОСТА». якщо потрібного числа там немає, "
+                "пиши без цифр зовсім. поверни лише текст."
+            )
+            still = self._recycled_stats(text, fact, recent_texts or [])
+            if still:
+                logger.warning("still recycling %s after retry",
+                               ", ".join(sorted(still)))
 
         # A BlackSea-owned persona must not advertise a competing storefront.
         if getattr(self.brand, "forbid_rival_platforms", False):
@@ -441,6 +507,7 @@ class WriterAgent:
         raw = self._apply_guards(
             client, raw, user_message, recent_openings,
             sell=sell, via_bio=via_bio, is_chain=True,
+            fact=brief.get("fact"), recent_texts=memory.recent_post_texts(),
         )
         parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
         return [self._trim(p) for p in parts][:max_parts]

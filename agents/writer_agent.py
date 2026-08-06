@@ -223,6 +223,36 @@ class WriterAgent:
             seen |= cls._stat_numbers(t)
         return (drafted & seen) - allowed
 
+    _FIRST_PERSON_RE = re.compile(
+        r"\b(я|мене|мені|мною|мій|моя|моє|мої|моєму|мого|моїй|моїм)\b",
+        re.IGNORECASE)
+    # Ukrainian drops the subject pronoun, so the giveaway is a 1sg past-tense
+    # verb opening a sentence: "Відкрила список чатів, написала в три."
+    _FIRST_PERSON_VERB_RE = re.compile(
+        r"(?:^|[.!?…]\s+|\n)\s*(?:відкрила|написала|зробила|виклала|поставила|"
+        r"порахувала|сіла|побачила|знайшла|спробувала|вирішила|почала|"
+        r"продала|запустила|додала|перевірила|гортала|думала|зрозуміла|"
+        r"відкрив|написав|зробив|виклав|поставив|порахував|сів|побачив|"
+        r"знайшов|спробував|вирішив|почав|продав|запустив|додав)\b",
+        re.IGNORECASE)
+
+    @classmethod
+    def _speaks_as_person(cls, brand, text: str) -> str | None:
+        """A brand account telling a personal story it cannot have had.
+
+        The platform account was writing invented first-person scenes —
+        "Відкрила список чатів, написала в три", "перший гайд опублікувала і
+        пішла гуляти" — around advice that was itself sound. The advice is
+        keepable; the fabricated narrator is not.
+        """
+        if not getattr(brand, "forbid_first_person", False):
+            return None
+        m = cls._FIRST_PERSON_RE.search(text or "")
+        if m:
+            return m.group(0)
+        m = cls._FIRST_PERSON_VERB_RE.search(text or "")
+        return m.group(0).strip() if m else None
+
     @classmethod
     def _unsupported_stats(cls, brand, text: str, fact: dict | None) -> set[str]:
         """Money/sales figures with nothing behind them.
@@ -452,6 +482,20 @@ class WriterAgent:
             if still:
                 logger.warning("still recycling %s after retry",
                                ", ".join(sorted(still)))
+
+        # A brand account must not narrate a life it does not have.
+        person = self._speaks_as_person(self.brand, text)
+        if person:
+            logger.info("draft spoke in first person (%r) — regenerating", person)
+            text = regen(
+                f"у тексті особиста розповідь від першої особи («{person}»). "
+                "ти платформа, а не людина: у тебе немає власних спогадів і "
+                "сцен. перепиши безособово або звертаючись до читача на «ти», "
+                "зберігши всю користь і конкретику. поверни лише текст."
+            )
+            still = self._speaks_as_person(self.brand, text)
+            if still:
+                logger.warning("still first person (%r) after retry", still)
 
         # Figures with nothing behind them at all (invented, not recycled).
         unsupported = self._unsupported_stats(self.brand, text, fact)

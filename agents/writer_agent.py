@@ -224,6 +224,20 @@ class WriterAgent:
         return (drafted & seen) - allowed
 
     @staticmethod
+    def _misread_fact(brand, text: str) -> str | None:
+        """A brand figure retold as something it is not. Checked per sentence so
+        that posts which name the wrong reading in order to deny it survive."""
+        rules = getattr(brand, "fact_misreads", ()) or ()
+        if not rules:
+            return None
+        sentences = re.split(r"(?<=[.!?…])\s+|\n+", text or "")
+        for nums_rx, wrong_rx, hint in rules:
+            for s in sentences:
+                if re.search(nums_rx, s) and re.search(wrong_rx, s, re.IGNORECASE):
+                    return hint
+        return None
+
+    @staticmethod
     def _anti_repeat(openings: list[str]) -> str:
         """Feeding 12 FULL recent posts was a wall the model ignored — openings
         repeated verbatim and the same three numbers (447/94/60к) carried 8-11 of
@@ -416,6 +430,17 @@ class WriterAgent:
             if still:
                 logger.warning("still recycling %s after retry",
                                ", ".join(sorted(still)))
+
+        # A brand figure turned into a claim it does not support.
+        misread = self._misread_fact(self.brand, text)
+        if misread:
+            logger.info("draft misread a brand figure — regenerating")
+            text = regen(
+                f"у тексті перекручений факт. {misread}. перепиши, зберігши "
+                "правильне значення цифр. поверни лише текст."
+            )
+            if self._misread_fact(self.brand, text):
+                logger.warning("figure still misread after retry")
 
         # A BlackSea-owned persona must not advertise a competing storefront.
         if getattr(self.brand, "forbid_rival_platforms", False):

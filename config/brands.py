@@ -352,6 +352,13 @@ class Brand:
     platform: str = "threads"
     # Hard cap per post. Threads: 500. X: 280 without Premium, 25 000 with it.
     max_post_chars: int = 500
+    # Ways this brand's own figures get inverted in retelling. Each entry is
+    # (numbers regex, wrong-context regex, correction) and is checked per
+    # SENTENCE: a draft that puts the numbers and the wrong framing in one
+    # sentence is regenerated. Sentence scope matters — posts that state the
+    # figure correctly often name the wrong reading to deny it ("209 з 1676.
+    # Не автори. Ті, хто вже купував"), and whole-text matching would kill them.
+    fact_misreads: tuple[tuple[str, str, str], ...] = ()
 
 
 TALA = Brand(
@@ -399,6 +406,19 @@ BLACKSEA = Brand(
     niche="маркетплейс цифрових продуктів: як автори продають гайди й шаблони, як покупці їх знаходять",
     accounts_file=settings.CONFIG_DIR / "blacksea_accounts.json",
     max_chain_parts=5,
+    # 209 of 1676 are BUYERS. Retold as sellers it becomes an advert for how few
+    # authors the platform has: "209 авторів з 1676 вже продають на blacksea.
+    # Решта зареєстровані, але ще нічого не виклали" went out on 06.08.2026, and
+    # the same inversion had shipped in March and April.
+    fact_misreads=(
+        (r"\b(209|1676)\b|12[,.]5\s*%",
+         r"автор\w*|продавц\w*|продают\w*|продають|виклал\w*|виставил\w*|"
+         r"публікув\w*|опублікув\w*",
+         "числа 209 / 1676 / 12,5% стосуються ПОКУПЦІВ: 209 із 1676 "
+         "зареєстрованих щось купили. їх не можна називати авторами чи "
+         "продавцями і не можна казати, скільки авторів виклали продукт — "
+         "таких даних у тебе немає"),
+    ),
 )
 
 

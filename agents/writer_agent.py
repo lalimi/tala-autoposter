@@ -223,6 +223,28 @@ class WriterAgent:
             seen |= cls._stat_numbers(t)
         return (drafted & seen) - allowed
 
+    @classmethod
+    def _unsupported_stats(cls, brand, text: str, fact: dict | None) -> set[str]:
+        """Money/sales figures with nothing behind them.
+
+        `_recycled_stats` only catches numbers seen in earlier posts, so a
+        freshly invented one passes: given the keyword "5% від продажів" and an
+        unrelated fact, the writer produced "5% від кожного продажу йде
+        новачкам, які ще не заробили ні копійки" — a programme that does not
+        exist. For brands that speak for a product, a figure must trace back to
+        the post's own fact or to the ones stated in the prompt.
+        """
+        if not getattr(brand, "require_fact_figures", False):
+            return set()
+        drafted = cls._stat_numbers(text)
+        if not drafted:
+            return set()
+        fact_text = " ".join(filter(None, [
+            (fact or {}).get("text"), (fact or {}).get("detail")]))
+        allowed = set(re.findall(r"\d+", fact_text))
+        allowed |= set(getattr(brand, "known_figures", ()) or ())
+        return drafted - allowed
+
     @staticmethod
     def _misread_fact(brand, text: str) -> str | None:
         """A brand figure retold as something it is not. Checked per sentence so
@@ -430,6 +452,22 @@ class WriterAgent:
             if still:
                 logger.warning("still recycling %s after retry",
                                ", ".join(sorted(still)))
+
+        # Figures with nothing behind them at all (invented, not recycled).
+        unsupported = self._unsupported_stats(self.brand, text, fact)
+        if unsupported:
+            nums = ", ".join(sorted(unsupported))
+            logger.info("draft invented figure(s) %s — regenerating", nums)
+            text = regen(
+                f"цифри «{nums}» нізвідки не взялись — їх немає ні у факті "
+                "цього поста, ні серед відомих тобі. перепиши, лишивши тільки "
+                "те, що є у блоці «ФАКТ ДЛЯ ЦЬОГО ПОСТА». якщо для думки "
+                "потрібна цифра, якої там немає, побудуй думку без цифри. "
+                "поверни лише текст."
+            )
+            still = self._unsupported_stats(self.brand, text, fact)
+            if still:
+                logger.warning("still unsupported: %s", ", ".join(sorted(still)))
 
         # A brand figure turned into a claim it does not support.
         misread = self._misread_fact(self.brand, text)

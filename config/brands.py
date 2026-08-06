@@ -365,6 +365,14 @@ class Brand:
     # figure correctly often name the wrong reading to deny it ("209 з 1676.
     # Не автори. Ті, хто вже купував"), and whole-text matching would kill them.
     fact_misreads: tuple[tuple[str, str, str], ...] = ()
+    # True for accounts that speak for a product: every money/sales figure in a
+    # draft must come from the post's own fact or from known_figures. Without
+    # this the model welds an unrelated keyword onto an unrelated fact and
+    # invents a feature — "5% від кожного продажу йде новачкам, які ще не
+    # заробили ні копійки" was generated from the referral fact plus a keyword.
+    require_fact_figures: bool = False
+    # Figures the brand may state without a fact backing them (from the prompt).
+    known_figures: tuple[str, ...] = ()
 
 
 TALA = Brand(
@@ -419,6 +427,9 @@ BLACKSEA = Brand(
     bio_cta_ratio=1.0,
     bio_offer="безкоштовні гайди й курси українською",
     product_url="https://blacksea.in.ua",
+    require_fact_figures=True,
+    # 10% commission and the ~30% markup are stated in the prompt itself.
+    known_figures=("10", "30"),
     # 209 of 1676 are BUYERS. Retold as sellers it becomes an advert for how few
     # authors the platform has: "209 авторів з 1676 вже продають на blacksea.
     # Решта зареєстровані, але ще нічого не виклали" went out on 06.08.2026, and

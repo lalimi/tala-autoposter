@@ -75,7 +75,13 @@ def run_pipeline(
     from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc)
-    hook = writer.HOOK_TYPES[now.hour % len(writer.HOOK_TYPES)]
+    # A brand may weight the rotation instead of taking every hook equally
+    # often; the cycle holds indexes into HOOK_TYPES.
+    if brand.hook_cycle:
+        hook_index = brand.hook_cycle[now.hour % len(brand.hook_cycle)]
+    else:
+        hook_index = now.hour % len(writer.HOOK_TYPES)
+    hook = writer.HOOK_TYPES[hook_index]
     # Rotate the grammar of the first line independently of the hook, on a
     # different stride, so the same hook doesn't keep producing the same
     # construction. 8 hooks x 8 forms with co-prime strides = long cycle.
@@ -85,9 +91,12 @@ def run_pipeline(
     logger.info("[%s] hook: %s | opening: %s",
                 brand.key, hook[:38], opening[:38])
 
-    # Chain vs single is brand-tuned (Tala leans chains, blacksea leans singles).
+    # Chain vs single is brand-tuned (Tala leans chains, blacksea leans singles),
+    # except that a list hook needs the room: "ось 30 з них" cannot be delivered
+    # in one 500-character post, and truncating it wastes the strongest format.
     parts = None
-    if random.random() < brand.chain_probability:
+    force_chain = hook_index in writer.LIST_HOOK_INDEXES
+    if force_chain or random.random() < brand.chain_probability:
         parts = writer.run_chain(brief, memory, sell=sell, hook=hook,
                                  via_bio=via_bio, opening=opening)
         if len(parts) < 2:

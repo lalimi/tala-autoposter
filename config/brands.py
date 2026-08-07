@@ -384,6 +384,13 @@ class Brand:
     forbid_first_person: bool = False
     # Figures the brand may state without a fact backing them (from the prompt).
     known_figures: tuple[str, ...] = ()
+    # Explicit rotation over WriterAgent.HOOK_TYPES indices, sampled by the hour.
+    # Empty = every hook equally often. A weighted cycle exists because the hooks
+    # are not equally good: measured on 05.08, the list formats carried both the
+    # owner's best post (15 637 views, 137 likes, 10 reposts) and the bot's
+    # (8 108), while the flat-opinion hook took 104. Neighbouring entries must
+    # differ so the same hook cannot run twice in a row.
+    hook_cycle: tuple[int, ...] = ()
 
 
 TALA = Brand(
@@ -408,6 +415,11 @@ TALA = Brand(
     niche="цифрові продукти й notion-шаблони, тривожність і системи для життя, фріланс і доходи з власних продуктів",
     accounts_file=settings.CONFIG_DIR / "tala_accounts.json",
     max_chain_parts=8,
+    # Lists take 11 of 24 slots (46%) instead of 3 of 9 (33%): the big list
+    # alone goes from 11% to 21%. Everything else keeps a slot so the account
+    # does not become one-note.
+    hook_cycle=(0, 3, 1, 4, 0, 5, 2, 6, 1, 7, 0, 8,
+                3, 1, 0, 4, 2, 5, 1, 6, 0, 7, 3, 8),
 )
 
 BLACKSEA = Brand(

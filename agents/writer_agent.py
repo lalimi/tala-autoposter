@@ -56,6 +56,9 @@ class WriterAgent:
         "стек інструментів: перелік того, чим користуєшся, і навіщо кожен",
         "непопулярна думка про свою нішу і чому ти так вважаєш",
     )
+    # Hooks whose payload is a list: these must be published as a chain, since
+    # the promise ("ось 30 з них") cannot be kept inside one 500-char post.
+    LIST_HOOK_INDEXES = (0, 1)
     _URL_RE = re.compile(r"https?://\S+")
 
     @classmethod

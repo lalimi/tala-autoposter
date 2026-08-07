@@ -415,6 +415,10 @@ TALA = Brand(
     niche="цифрові продукти й notion-шаблони, тривожність і системи для життя, фріланс і доходи з власних продуктів",
     accounts_file=settings.CONFIG_DIR / "tala_accounts.json",
     max_chain_parts=8,
+    # She sells on BlackSea, so she must not advertise a competing storefront.
+    # A book-list chain produced "Платформа Gumroad створена людиною, яка не
+    # вірила у великі команди" — a favourable aside about a direct rival.
+    forbid_rival_platforms=True,
     # Lists take 11 of 24 slots (46%) instead of 3 of 9 (33%): the big list
     # alone goes from 11% to 21%. Everything else keeps a slot so the account
     # does not become one-note.
@@ -452,6 +456,7 @@ BLACKSEA = Brand(
     product_url="https://blacksea.in.ua",
     require_fact_figures=True,
     forbid_first_person=True,
+    forbid_rival_platforms=True,
     # 10% commission and the ~30% markup are stated in the prompt itself.
     known_figures=("10", "30"),
     # 209 of 1676 are BUYERS. Retold as sellers it becomes an advert for how few

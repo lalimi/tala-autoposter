@@ -36,11 +36,14 @@ logger = logging.getLogger("tala.search")
 
 
 def search(keyword: str, brand: Brand = TALA, search_type: str = "TOP",
-           limit: int = 25, media_type: str | None = None) -> list[dict]:
-    """Public Threads posts for `keyword`, newest-or-top first.
+           limit: int = 25, media_type: str | None = None,
+           search_mode: str | None = None) -> list[dict]:
+    """Public Threads posts for `keyword`, top-or-recent first.
 
-    search_type: "TOP" (high engagement) or "RECENT". Returns [] on any API
-    failure so a bad keyword never takes the caller down.
+    search_type: "TOP" (high engagement) or "RECENT".
+    search_mode:  "TAG" searches the topic tag rather than free text — that is
+                  how you follow a trending topic once you know its name.
+    Returns [] on any API failure so a bad keyword never takes the caller down.
     """
     params = {
         "q": keyword,
@@ -51,6 +54,8 @@ def search(keyword: str, brand: Brand = TALA, search_type: str = "TOP",
     }
     if media_type:
         params["media_type"] = media_type
+    if search_mode:
+        params["search_mode"] = search_mode
     try:
         r = requests.get(f"{BASE_URL}/keyword_search", params=params, timeout=20)
         if not r.ok:

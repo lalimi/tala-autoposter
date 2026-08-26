@@ -376,7 +376,7 @@ def save_comment_targets(rows: list[dict], prefix: str = "tala") -> None:
 def next_comment_target(prefix: str = "tala") -> dict | None:
     """Freshest un-commented candidate (most recently scraped)."""
     rows = _req("GET", f"{prefix}_comment_targets", params={
-        "select": "id,thread_id,username,text,url,likes,keyword",
+        "select": "id,thread_id,username,text,url,likes,keyword,source",
         "status": "eq.new", "order": "id.desc", "limit": 1,
     }) or []
     return rows[0] if rows else None

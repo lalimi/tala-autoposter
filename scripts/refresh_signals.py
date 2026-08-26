@@ -18,6 +18,7 @@ import logging
 import random
 
 import store
+from agents import keyword_search
 from config import settings
 from config.brands import DENYS, TALA
 from parser.scraper import fetch_all
@@ -31,6 +32,7 @@ log = logging.getLogger("tala.refresh")
 SCRAPE_BRANDS = (TALA, DENYS)
 
 PEER_SAMPLE = 10          # accounts scraped per refresh (rotates over runs)
+API_SEARCH_KEYWORDS = 6   # keywords queried through the official API per run
 KEYWORD_SAMPLE = 18       # total keyword searches per run (split across brands)
 MAX_TOTAL = 300           # keep broad keyword coverage, not just the top 20
 
@@ -164,16 +166,33 @@ def main() -> None:
         if not brand.comments_enabled:
             continue
         kset = set(kws)
+
+        # Prefer the OFFICIAL keyword search: its ids are real Graph media ids,
+        # so those replies go through the API instead of the browser. It returns
+        # nothing useful until the app is approved for threads_keyword_search,
+        # so the scrape below still runs as the fallback.
+        api_targets: list[dict] = []
+        for kw in random.sample(kws, min(len(kws), API_SEARCH_KEYWORDS)):
+            posts = keyword_search.search(kw, brand, search_type="TOP")
+            api_targets += keyword_search.as_comment_targets(
+                posts, kw, own_handles=settings.OWN_HANDLES)
+        if api_targets:
+            store.save_comment_targets(api_targets, prefix=brand.table_prefix)
+            log.info("[%s] queued %d comment targets from the API",
+                     brand.key, len(api_targets))
+
         targets = [
             {"thread_id": p["id"], "username": p.get("source"), "text": p.get("text", ""),
-             "url": p.get("url"), "likes": p.get("likes", 0), "keyword": p.get("keyword")}
+             "url": p.get("url"), "likes": p.get("likes", 0), "keyword": p.get("keyword"),
+             "source": "scrape"}
             for p in relevant_by_brand.get(brand.key, [])
             if p.get("id") and p.get("text")
             and (p.get("source") or "").lstrip("@").lower() not in settings.OWN_HANDLES
         ]
         if targets:
             store.save_comment_targets(targets, prefix=brand.table_prefix)
-            log.info("[%s] queued %d comment targets", brand.key, len(targets))
+            log.info("[%s] queued %d comment targets from the scraper",
+                     brand.key, len(targets))
 
 
 if __name__ == "__main__":

@@ -264,9 +264,22 @@ def run_comment(
     if not publish:
         return text
 
-    # Comment via the browser: the Graph API can't reply to arbitrary feed posts
-    # (we only have a scraped web id, not a Graph media id), so drive the web UI.
     try:
+        # Targets found through the official keyword search carry a real Graph
+        # media id, so the reply goes through the API — no browser, no session,
+        # nothing to ban for automating the web UI. Scraped targets only have a
+        # web pk (a different id space, which is why API replies to them 500'd),
+        # so those still have to drive the web UI.
+        if target.get("source") == "api":
+            from agents.publisher_agent import PublisherAgent
+
+            result = PublisherAgent(brand).reply_to(text, target["thread_id"])
+            store.mark_commented(target["id"], result.get("post_id"), text,
+                                 brand.table_prefix)
+            logger.info("[%s] commented via API | @%s | id=%s",
+                        brand.key, target.get("username"), result.get("post_id"))
+            return text
+
         from parser.commenter import post_reply
 
         # Comment as THIS brand: the reply is published by whoever the session

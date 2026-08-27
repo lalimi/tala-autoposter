@@ -69,6 +69,34 @@ def search(keyword: str, brand: Brand = TALA, search_type: str = "TOP",
         return []
 
 
+def trending_topics(brand: Brand = TALA, country_code: str = "UA") -> list[dict]:
+    """What Threads is trending on right now, per country.
+
+    GET /trending_topics?country_code=XX. Probed against the live API: the
+    endpoint answers for our token without App Review — it only rejected the
+    call for the missing country_code, not for a missing permission.
+
+    Returns [] on failure, so a bad country or an API hiccup never takes a run
+    down. Shape is whatever Meta sends; callers should use .get().
+    """
+    try:
+        r = requests.get(
+            f"{BASE_URL}/trending_topics",
+            params={"country_code": country_code,
+                    "access_token": get_valid_token(brand)},
+            timeout=20,
+        )
+        if not r.ok:
+            logger.warning("trending_topics %s -> %s: %s",
+                           country_code, r.status_code, r.text[:200])
+            return []
+        payload = r.json()
+        return payload.get("data", payload) or []
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("trending_topics %s failed: %s", country_code, exc)
+        return []
+
+
 def as_comment_targets(posts: list[dict], keyword: str,
                        own_handles: set[str] | None = None) -> list[dict]:
     """Shape API results into {prefix}_comment_targets rows.
@@ -111,9 +139,17 @@ if __name__ == "__main__":
     ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--check", action="store_true",
                     help="report whether threads_keyword_search is approved")
+    ap.add_argument("--trending", metavar="COUNTRY", nargs="?", const="UA",
+                    help="print trending topics for a country (default UA)")
     a = ap.parse_args()
 
     brand = get_brand(a.brand)
+
+    if a.trending:
+        topics = trending_topics(brand, country_code=a.trending)
+        print(json.dumps(topics, ensure_ascii=False, indent=2)[:4000])
+        print(f"\nтрендових тем: {len(topics)} ({a.trending})")
+        raise SystemExit(0)
     posts = search(a.q, brand, search_type=a.type, limit=a.limit)
 
     if a.check:

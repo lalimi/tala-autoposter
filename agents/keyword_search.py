@@ -26,6 +26,7 @@ import logging
 import requests
 
 from agents.token_manager import get_valid_token
+from config import settings
 from config.brands import TALA, Brand
 
 BASE_URL = "https://graph.threads.net/v1.0"
@@ -37,7 +38,7 @@ logger = logging.getLogger("tala.search")
 
 def search(keyword: str, brand: Brand = TALA, search_type: str = "TOP",
            limit: int = 25, media_type: str | None = None,
-           search_mode: str | None = None) -> list[dict]:
+           search_mode: str | None = None, force: bool = False) -> list[dict]:
     """Public Threads posts for `keyword`, top-or-recent first.
 
     search_type: "TOP" (high engagement) or "RECENT".
@@ -45,6 +46,8 @@ def search(keyword: str, brand: Brand = TALA, search_type: str = "TOP",
                   how you follow a trending topic once you know its name.
     Returns [] on any API failure so a bad keyword never takes the caller down.
     """
+    if not settings.THREADS_API_SEARCH and not force:
+        return []
     params = {
         "q": keyword,
         "search_type": search_type,
@@ -69,16 +72,23 @@ def search(keyword: str, brand: Brand = TALA, search_type: str = "TOP",
         return []
 
 
-def trending_topics(brand: Brand = TALA, country_code: str = "UA") -> list[dict]:
+def trending_topics(brand: Brand = TALA, country_code: str = "UA",
+                    force: bool = False) -> list[dict]:
     """What Threads is trending on right now, per country.
 
-    GET /trending_topics?country_code=XX. Probed against the live API: the
-    endpoint answers for our token without App Review — it only rejected the
-    call for the missing country_code, not for a missing permission.
+    GET /trending_topics?country_code=XX. The path is real — probing it without
+    the parameter returns "The parameter country_code is required" rather than
+    404. That error is only parameter validation though, which runs BEFORE the
+    permission check, so it says nothing about access: with the country_code
+    supplied, UA/US/GB/PL/DE/CA/AU all came back 200 with an empty list because
+    threads_trending_topics is not granted yet (business verification pending).
+    Meta answers empty rather than erroring, exactly as keyword_search does.
 
     Returns [] on failure, so a bad country or an API hiccup never takes a run
     down. Shape is whatever Meta sends; callers should use .get().
     """
+    if not settings.THREADS_API_SEARCH and not force:
+        return []
     try:
         r = requests.get(
             f"{BASE_URL}/trending_topics",
@@ -150,12 +160,12 @@ if __name__ == "__main__":
         # so the useful question is which markets answer at all.
         codes = [c.strip().upper() for c in a.trending.split(",") if c.strip()]
         for code in codes:
-            topics = trending_topics(brand, country_code=code)
+            topics = trending_topics(brand, country_code=code, force=True)
             print(f"\n=== {code}: {len(topics)} тем ===")
             if topics:
                 print(json.dumps(topics, ensure_ascii=False, indent=2)[:2500])
         raise SystemExit(0)
-    posts = search(a.q, brand, search_type=a.type, limit=a.limit)
+    posts = search(a.q, brand, search_type=a.type, limit=a.limit, force=True)
 
     if a.check:
         from config import settings

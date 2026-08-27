@@ -158,6 +158,13 @@ CHAIN_MAX_PARTS = int(_env("CHAIN_MAX_PARTS", "3") or "3")
 # items ≈ 3 min — fine on the VPS (unit TimeoutStartSec=900), too slow for Vercel.
 LIST_MAX_ITEMS = int(_env("LIST_MAX_ITEMS", "12") or "12")
 
+# Official Threads discovery endpoints (/keyword_search, /trending_topics) need
+# threads_keyword_search / threads_trending_topics, which are gated behind App
+# Review + business verification. Until that clears, Meta answers with an empty
+# list rather than an error, so calling them just burns requests against an
+# account we are already trying to keep quiet. Flip to 1 once approved.
+THREADS_API_SEARCH = _env("THREADS_API_SEARCH", "0") not in ("", "0", "false")
+
 # Share of runs that publish a listicle instead of a chain/single. Checked first,
 # so this is the absolute share of posts in that format.
 TALA_LIST_PROBABILITY = float(_env("TALA_LIST_PROBABILITY", "0.25") or "0.25")

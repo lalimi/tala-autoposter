@@ -146,9 +146,14 @@ if __name__ == "__main__":
     brand = get_brand(a.brand)
 
     if a.trending:
-        topics = trending_topics(brand, country_code=a.trending)
-        print(json.dumps(topics, ensure_ascii=False, indent=2)[:4000])
-        print(f"\nтрендових тем: {len(topics)} ({a.trending})")
+        # Accept a comma-separated list: Threads rolled Trending out per country,
+        # so the useful question is which markets answer at all.
+        codes = [c.strip().upper() for c in a.trending.split(",") if c.strip()]
+        for code in codes:
+            topics = trending_topics(brand, country_code=code)
+            print(f"\n=== {code}: {len(topics)} тем ===")
+            if topics:
+                print(json.dumps(topics, ensure_ascii=False, indent=2)[:2500])
         raise SystemExit(0)
     posts = search(a.q, brand, search_type=a.type, limit=a.limit)
 

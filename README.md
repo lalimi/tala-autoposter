@@ -18,6 +18,27 @@ Everything brand-specific lives in `config/brands.py` (a `Brand` is threaded
 through the pipeline and every agent). Adding a third account = one entry there
 + a topics file + an env token + three Supabase tables — no agent code changes.
 
+**Shape rotation (tala, `use_shapes=True`).** The chain/single split produced
+one skeleton in nearly every post — a figure, then "ось N речей, які я…", then
+a fixed-length numbered list (8 parts every chain; 13 of 40 recent posts
+opened "12 …"/"7 …"). Tala now rotates through seven structurally different
+shapes in `WriterAgent.SHAPES` — `list` (7-15 items), `guide` (3-6 steps),
+`story` (2-4 parts, no list), `opinion`, `question`, `insight` (single, no
+numbers) and `compare` — never repeating either of the previous two and never
+two list-likes in a row. A brand fact is offered to only half the posts
+(`FACT_PROBABILITY`), so half lead with a situation instead of a figure;
+sampling runs at `WRITER_TEMPERATURE=1.0`; and the anti-repeat block bans a
+leading digit after two digit-led posts and the "N речей, які…" construction
+once it has appeared. The shape name is stored as the post's `format`, so the
+metrics job shows which shapes actually earn reach.
+
+**Reach recovery (tala).** Reach was suppressed 10-20x for five weeks at ~6
+posts/day (median 202 views before 9 Aug, 10-24 since). Per Meta's
+reduced-distribution pattern the cadence is now 8-12h (~2-3 posts/day via
+`POST_MIN_GAP_MINUTES` / `TALA_MAX_GAP_MINUTES`) and browser commenting is
+paused (`TALA_COMMENTS_ENABLED=0`). Restore both once the median climbs back
+towards ~200.
+
 **Cadence is self-throttling.** GitHub's scheduled crons are unreliable (they
 delay and silently drop runs at the top of the hour), so each workflow fires
 every 30 min and the endpoint *decides* whether to post: it skips unless the

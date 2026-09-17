@@ -47,6 +47,18 @@ WRITER_MAX_TOKENS = int(_env("WRITER_MAX_TOKENS", "800") or "800")
 # only if you switch to a thinking model and want it to plan first.
 WRITER_THINKING_BUDGET = int(_env("WRITER_THINKING_BUDGET", "0") or "0")
 
+# Sampling temperature. It was never set, so the model ran at its default and,
+# with a guard that only rejects a look-alike FIRST LINE, converged on "new
+# opening, same skeleton". 1.0 is the Anthropic-API maximum; only applied when
+# thinking is off (the API demands temperature=1 alongside thinking anyway).
+WRITER_TEMPERATURE = float(_env("WRITER_TEMPERATURE", "1.0") or "1.0")
+
+# Share of shape-driven posts that are handed a brand fact at all. When every
+# post had to "build on the fact", every post led with a figure and the small
+# fact pool cycled in the open (447 грн, 3:12, 1027 — three times each in 40
+# posts). Half the posts now carry no number on purpose.
+FACT_PROBABILITY = float(_env("FACT_PROBABILITY", "0.5") or "0.5")
+
 # Share of posts that MUST end with a product CTA + link. Left to the prompt as
 # "optional", the model added the bridge in 1 of 40 posts (2%) — so the pipeline
 # now decides and the writer is told it's mandatory for that post.
@@ -98,7 +110,13 @@ DENYS_CHAIN_PROBABILITY = float(
 POST_GAP_MIN_MINUTES = int(_env("POST_GAP_MIN_MINUTES", "135") or "135")
 POST_GAP_MAX_MINUTES = int(_env("POST_GAP_MAX_MINUTES", "170") or "170")
 
-TALA_MIN_GAP_MINUTES = int(_env("POST_MIN_GAP_MINUTES", "135") or "135")
+# tala: RECOVERY cadence. Reach has been suppressed 10-20x for five weeks
+# (median 202 views before 9 Aug, 10-24 since) at ~6 posts/day. Documented
+# recovery from reduced distribution is 1-2 native posts/day for 10-14 days with
+# automation patterns stopped, so the gap is 8-12h (~2-3 posts/day). Restore
+# POST_MIN_GAP_MINUTES=135 / TALA_MAX_GAP_MINUTES=170 once the median is back.
+TALA_MIN_GAP_MINUTES = int(_env("POST_MIN_GAP_MINUTES", "480") or "480")
+TALA_MAX_GAP_MINUTES = int(_env("TALA_MAX_GAP_MINUTES", "720") or "720")
 BLACKSEA_MIN_GAP_MINUTES = int(_env("BLACKSEA_MIN_GAP_MINUTES", "135") or "135")
 # New-account warm-up: ~4h gap → 3-4 posts/day inside the daytime window. Lower
 # to ~175 (≈ every 3h) once the account is a couple of weeks old and trusted.
@@ -111,6 +129,10 @@ DENYS_MIN_GAP_MINUTES = int(_env("DENYS_MIN_GAP_MINUTES", "135") or "135")
 TALA_COMMENT_MIN_GAP_MINUTES = int(
     _env("COMMENT_MIN_GAP_MINUTES", "90") or "90"
 )
+# Paused for the reach-recovery window: browser-driven replies from a
+# suppressed account are the single riskiest automation signal we emit. Set
+# TALA_COMMENTS_ENABLED=1 to resume (after ~14 days, once the median recovers).
+TALA_COMMENTS_ENABLED = _env("TALA_COMMENTS_ENABLED", "0") not in ("", "0", "false")
 # Denys is a brand-new account (days old, ~0 followers): browser automation from
 # a fresh account is the highest-risk profile there is, so start deliberately
 # slow — ~3 comments a day. Lower once the account has some history.

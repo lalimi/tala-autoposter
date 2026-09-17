@@ -296,16 +296,33 @@ class WriterAgent:
     def _anti_repeat(openings: list[str]) -> str:
         """Feeding 12 FULL recent posts was a wall the model ignored — openings
         repeated verbatim and the same three numbers (447/94/60к) carried 8-11 of
-        40 posts. Show just the openings and ban reusing them."""
+        40 posts. Show just the openings and ban reusing them.
+
+        Two structural bans are computed from the openings themselves, because
+        the prompt-level "vary it" never held: no leading digit when the last
+        two posts opened with one (13 of 40 recent posts began "12 …"/"7 …"),
+        and no "N речей, які …" construction once it has appeared recently."""
         if not openings:
             return ""
         listed = "\n".join(f"  - {o}" for o in openings[:20])
-        return (
+        out = (
             "ЗАЧИНИ ОСТАННІХ ПОСТІВ (заборонено починати схоже, заборонено "
             f"повторювати ці ж цифри й факти в хуку):\n{listed}\n"
             "візьми ІНШИЙ вхід: інша ситуація, інша деталь, інша цифра або взагалі "
             "без цифри. не кожен пост про дохід.\n"
         )
+        heads = [o.strip() for o in openings[:2] if o and o.strip()]
+        if len(heads) == 2 and all(h[0].isdigit() for h in heads):
+            out += ("ПЕРШИЙ РЯДОК НЕ ПОЧИНАЄТЬСЯ З ЦИФРИ: два попередні пости вже "
+                    "відкривались числом. почни зі слова, сцени або питання.\n")
+        stock = re.compile(
+            r"\d+\s+(речей|правил|сигналів|книжок|застосунків|відповідей|"
+            r"кроків|порад|причин)\b", re.IGNORECASE)
+        if any(stock.search(o or "") for o in openings[:6]):
+            out += ("ЗАБОРОНЕНА КОНСТРУКЦІЯ «N речей/правил/сигналів, які …» — "
+                    "вона була в останніх постах. якщо це список, введи його "
+                    "інакше: через ситуацію, зізнання, питання або наслідок.\n")
+        return out
 
     def _sell_block(self, sell: bool, via_bio: bool = False) -> str:
         """Selling is decided by the pipeline, not by the model's mood: as an
@@ -622,6 +639,153 @@ class WriterAgent:
         parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
         return [self._trim(p) for p in parts][:max_parts]
 
+    # ── Shapes ────────────────────────────────────────────────────────────
+    # Seven structurally different post forms. The chain/list/single split
+    # produced ONE skeleton in nearly every post — [figure] + "ось N речей, які
+    # я…" + a fixed-length numbered list (8 parts every chain, 12 items every
+    # list; 13 of the last 40 posts opened with "12 …"/"7 …"). A shape fixes a
+    # part-count RANGE, whether a fact is even offered, and what the post is
+    # structurally, so two consecutive posts cannot share a skeleton. Weights
+    # lean towards short, opinionated, native forms — the documented recovery
+    # profile for an account under reduced distribution.
+    from typing import NamedTuple as _NamedTuple
+
+    class Shape(_NamedTuple):
+        key: str
+        weight: float
+        lo: int          # min parts (1 = a single post)
+        hi: int          # max parts
+        listlike: bool   # numbered-list body; never two of these in a row
+        wants_fact: bool # may be handed a brand fact (still only FACT_PROBABILITY)
+        rule: str        # structural instruction for the model
+
+    SHAPES = (
+        Shape("list", 0.20, 7, 15, True, True,
+              "ЛІСТИКЛ. частина 1 — хук: досвід або спостереження + що читач "
+              "отримає. НЕ використовуй конструкцію «ось N речей, які…» / «N "
+              "речей, які я…»; кількість пунктів у хуку необовʼязкова. далі по "
+              "одному пункту на частину: один короткий пронумерований рядок, "
+              "конкретний і корисний, без пояснень на абзац."),
+        Shape("guide", 0.15, 3, 6, True, True,
+              "ПОКРОКОВИЙ ГАЙД. частина 1 — яку конкретну проблему це "
+              "розвʼязує і для кого, без списку. далі один крок на частину: "
+              "що зробити і чому саме так, 2-4 рядки. остання частина — що "
+              "змінюється, коли все зроблено."),
+        Shape("story", 0.20, 2, 4, False, False,
+              "ІСТОРІЯ-МОМЕНТ. одна конкретна сцена з власного досвіду: де "
+              "була, що сталось, що подумала, що зробила інакше, і висновок в "
+              "останній частині. ЖОДНИХ списків, нумерації, «по-перше». цифра "
+              "лише якщо вона частина сцени, не як аргумент."),
+        Shape("opinion", 0.15, 1, 1, False, False,
+              "НЕПОПУЛЯРНА ДУМКА. одне гостре твердження про свою нішу, з яким "
+              "більшість не погодиться, і 2-3 речення чому ти так вважаєш. без "
+              "списків, без цифр, без хука-обіцянки. закінчи так, щоб хотілось "
+              "посперечатись у коментарях. 250-450 символів."),
+        Shape("question", 0.10, 1, 1, False, False,
+              "ПИТАННЯ ДО АУДИТОРІЇ. 2-4 рядки: одна реальна ситуація або "
+              "дилема, без поради і без цифр. останній рядок — ОДНЕ конкретне "
+              "питання, на яке справді хочеться відповісти. до 300 символів."),
+        Shape("compare", 0.10, 2, 3, False, True,
+              "ДВА СВІТИ. контраст на одній конкретній ситуації: частина 1 — "
+              "як було (або варіант А), частина 2 — як стало (або варіант Б) і "
+              "що саме це змінило. без нумерованих списків."),
+        Shape("insight", 0.10, 1, 1, False, False,
+              "ОДИН ІНСАЙТ. одна думка, до якої ти дійшла, і одне речення-"
+              "приклад. без списку, без хука-обіцянки, без цифр. коротко, ніби "
+              "записала для себе. 150-350 символів."),
+    )
+    # Legacy format names count as list-like when reading history.
+    _LISTLIKE = {"list", "guide", "chain"}
+
+    @classmethod
+    def pick_shape(cls, recent_formats: list[str]) -> "WriterAgent.Shape":
+        """Weighted pick that never repeats either of the previous two shapes
+        and never puts two list-like posts back to back."""
+        import random
+
+        recent = [f for f in recent_formats if f]
+        banned = set(recent[:2])
+        after_list = bool(recent) and recent[0] in cls._LISTLIKE
+        pool = [s for s in cls.SHAPES
+                if s.key not in banned and not (after_list and s.listlike)]
+        if not pool:
+            pool = list(cls.SHAPES)
+        return random.choices(pool, weights=[s.weight for s in pool], k=1)[0]
+
+    def run_shape(self, brief: dict, memory, shape: "WriterAgent.Shape",
+                  sell: bool = False, via_bio: bool = False,
+                  opening: str | None = None) -> list[str]:
+        """Write one post in the given shape. Returns its parts (a single post
+        is a 1-element list). The pipeline publishes >1 parts as a chain."""
+        import random
+
+        n = random.randint(shape.lo, shape.hi)
+        # A fact is optional even for shapes that can carry one, so half the
+        # posts lead with a situation rather than a figure. Writing None back
+        # into the brief keeps the pipeline from retiring a fact we never used.
+        fact = brief.get("fact") if (
+            shape.wants_fact and random.random() < settings.FACT_PROBABILITY
+        ) else None
+        brief["fact"] = fact
+
+        recent_topics = memory.get_recent_topics()
+        recent_openings = memory.recent_openings()
+        multi = n > 1
+        layout = (
+            f"- РІВНО {n} частин, розділяй їх рядком лише з трьох дефісів: ---\n"
+            f"- кожна частина максимум {self.max_chars} символів.\n"
+            if multi else
+            f"- це ОДИН пост, максимум {self.max_chars} символів, без роздільників.\n"
+        )
+        user_message = (
+            "напиши пост для threads.\n\n"
+            f"тема: {brief['keyword']}\n"
+            f"кут: {brief['angle']}\n"
+            f"сигнали (орієнтир, не копіювати): {brief.get('trend_signals', [])}\n"
+            f"вже опубліковані теми цього тижня (не повторювати): {recent_topics}\n\n"
+            f"{self._fact_block(fact)}"
+            f"{self._anti_repeat(recent_openings)}"
+            f"{self._hook_block(None, opening)}"
+            f"{self._sell_block(sell, via_bio)}\n"
+            f"ФОРМА ЦЬОГО ПОСТА (обовʼязкова): {shape.rule}\n"
+            f"{layout}"
+            f"- тему “{brief['keyword']}” дослівно не називати; показуй через "
+            "конкретну ситуацію, деталь або рішення.\n"
+            "- голос бренду з системного промпта, тільки українською.\n"
+            "- поверни лише текст, без пояснень і без лапок навколо."
+        )
+        client = self._client()
+        raw = self._call(
+            client, [{"role": "user", "content": user_message}],
+            max_tokens=4000 if multi else None,
+        )
+        raw = self._apply_guards(
+            client, raw, user_message, recent_openings,
+            sell=sell, via_bio=via_bio, is_chain=multi,
+            fact=fact, recent_texts=memory.recent_post_texts(),
+        )
+        if not multi:
+            text = self._strip_dividers(raw)
+            return [self._trim(text)]
+        parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
+        parts = [self._trim(p) for p in parts][:n]
+        if shape.key == "list" and len(parts) >= 3:
+            parts[0] = self._fix_promised_count(parts[0], len(parts) - 1)
+        return parts
+
+    @staticmethod
+    def _fix_promised_count(hook: str, actual: int) -> str:
+        """Make the number in a list hook match the items actually written, so
+        a promised 30 never arrives as 9. Rewrites the LAST number in the hook —
+        the one naming the list — and leaves a credential figure alone."""
+        matches = list(re.finditer(r"\d+", hook))
+        if not matches:
+            return hook
+        m = matches[-1]
+        if m.group() == str(actual):
+            return hook
+        return hook[: m.start()] + str(actual) + hook[m.end():]
+
     def run_comment(self, target: dict) -> str:
         """Write a short, natural reply to someone else's post, in the brand
         voice. Reactive and relevant — no pitch, no link, no CTA."""
@@ -732,6 +896,11 @@ class WriterAgent:
                 system=self.system_prompt,
                 messages=messages,
                 thinking=thinking,
+                # Explicit sampling temperature (see settings.WRITER_TEMPERATURE).
+                # The API rejects any value but 1 while thinking is on, so it is
+                # only passed when thinking is off.
+                **({} if settings.WRITER_THINKING_BUDGET
+                   else {"temperature": settings.WRITER_TEMPERATURE}),
             )
             text = "".join(
                 b.text for b in response.content if getattr(b, "type", "") == "text"

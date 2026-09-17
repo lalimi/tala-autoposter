@@ -137,6 +137,16 @@ def last_published_text(prefix: str = "tala") -> str:
     return rows[0]["text"] if rows else ""
 
 
+def recent_formats(prefix: str = "tala", limit: int = 3) -> list[str]:
+    """Formats (shape names) of the last published posts, newest first. The
+    pipeline uses it to never repeat the previous two shapes."""
+    rows = _req("GET", f"{prefix}_posts", params={
+        "select": "format", "status": "eq.published",
+        "order": "id.desc", "limit": limit,
+    }) or []
+    return [r.get("format") or "" for r in rows]
+
+
 def recent_post_texts(prefix: str = "tala", limit: int = 12, hours: int = 336) -> list[str]:
     """Recent published post texts — fed to the writer so it doesn't repeat
     itself (same stories, angles, phrasing)."""

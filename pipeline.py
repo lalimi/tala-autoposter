@@ -95,8 +95,22 @@ def run_pipeline(
     # except that a list hook needs the room: "ось 30 з них" cannot be delivered
     # in one 500-character post, and truncating it wastes the strongest format.
     parts = None
+    shaped = False
+    shape_key = ""
+    # Shape-driven brands rotate through seven structurally different forms
+    # (listicle, guide, story, opinion, question, compare, insight) and never
+    # repeat either of the previous two, so consecutive posts can't share a
+    # skeleton. The shape name is stored as the format, so the metrics job can
+    # tell us in two weeks which forms actually earn reach.
+    if getattr(brand, "use_shapes", False):
+        shape = writer.pick_shape(store.recent_formats(brand.table_prefix, 3))
+        logger.info("[%s] shape: %s", brand.key, shape.key)
+        parts = writer.run_shape(brief, memory, shape, sell=sell,
+                                 via_bio=via_bio, opening=opening)
+        shaped, shape_key = True, shape.key
+
     force_chain = hook_index in writer.LIST_HOOK_INDEXES
-    if force_chain or random.random() < brand.chain_probability:
+    if not shaped and (force_chain or random.random() < brand.chain_probability):
         parts = writer.run_chain(brief, memory, sell=sell, hook=hook,
                                  via_bio=via_bio, opening=opening)
         if len(parts) < 2:
@@ -104,7 +118,7 @@ def run_pipeline(
 
     if parts:
         post_text = "\n\n---\n\n".join(parts)
-        fmt = "chain"
+        fmt = shape_key if shaped else "chain"
     else:
         post_text = writer.run(brief, memory, sell=sell, hook=hook,
                                via_bio=via_bio, opening=opening)

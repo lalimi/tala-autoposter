@@ -366,6 +366,11 @@ class Brand:
     platform: str = "threads"
     # Hard cap per post. Threads: 500. X: 280 without Premium, 25 000 with it.
     max_post_chars: int = 500
+    # Shape-driven writing: the pipeline rotates through WriterAgent.SHAPES
+    # (listicle, guide, story, opinion, question, compare, insight) instead of
+    # the chain/list/single trichotomy, never repeating the previous two shapes.
+    # This is what breaks "every post is a numbered list opened by a figure".
+    use_shapes: bool = False
     # Ways this brand's own figures get inverted in retelling. Each entry is
     # (numbers regex, wrong-context regex, correction) and is checked per
     # SENTENCE: a draft that puts the numbers and the wrong framing in one
@@ -399,14 +404,18 @@ TALA = Brand(
     topics_file=settings.TOPICS_FILE,
     system_prompt=TALA_PROMPT,
     angle_template=(
-        "показати на конкретних цифрах і деталях, як '{keyword}' "
-        "вплітається в щоденне життя тривожної людини"
+        # Was "…в щоденне життя тривожної людини" — which forced the anxiety
+        # lens on EVERY post regardless of topic (it opened 3 of the last 40
+        # with "тривога не дає спати" alone). Anxiety stays a topic, not a lens.
+        "показати '{keyword}' через одну конкретну ситуацію, деталь або "
+        "рішення з власного досвіду"
     ),
     seed_token_attr="THREADS_ACCESS_TOKEN",
     chain_probability=settings.CHAIN_PROBABILITY,
     min_gap_minutes=settings.TALA_MIN_GAP_MINUTES,
-    max_gap_minutes=settings.POST_GAP_MAX_MINUTES,
-    comments_enabled=True,
+    max_gap_minutes=settings.TALA_MAX_GAP_MINUTES,
+    comments_enabled=settings.TALA_COMMENTS_ENABLED,
+    use_shapes=True,
     comment_min_gap_minutes=settings.TALA_COMMENT_MIN_GAP_MINUTES,
     image_manifest_url=settings.TALA_IMAGE_MANIFEST_URL,
     image_probability=settings.TALA_IMAGE_PROBABILITY,

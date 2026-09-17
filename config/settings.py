@@ -67,7 +67,12 @@ DENYS_SALES_PROBABILITY = float(_env("DENYS_SALES_PROBABILITY", "0.3") or "0.3")
 
 # Share of runs that publish a multi-post CHAIN (checklist / guide) rather than
 # a single post. Tala wants mostly chains, occasional singles. Tunable via env.
-CHAIN_PROBABILITY = float(_env("CHAIN_PROBABILITY", "0.9") or "0.9")
+# 1.0: the single-post format is retired for tala. Measured over 263 posts,
+# singles ran a median of 61 views against 211 for chains, and in 44 attempts a
+# single never once cleared 334 views (chains peaked at 22 742). Whatever is not
+# a listicle is now a chain; run_chain still falls back to a single if it returns
+# fewer than 2 parts.
+CHAIN_PROBABILITY = float(_env("CHAIN_PROBABILITY", "1.0") or "1.0")
 
 # Same knob for the @blacksea brand account, but flipped: mostly single friendly
 # posts, only occasionally a short tips chain.
@@ -167,6 +172,13 @@ DENYS_IMAGE_PROBABILITY = float(_env("DENYS_IMAGE_PROBABILITY", "0") or "0")
 # function limit (each Threads publish round-trip is ~15s). On an always-on host
 # (VPS) with no time cap, set CHAIN_MAX_PARTS=5 in the env for richer guides.
 CHAIN_MAX_PARTS = int(_env("CHAIN_MAX_PARTS", "3") or "3")
+
+# Official Threads discovery endpoints (/keyword_search, /trending_topics) need
+# threads_keyword_search / threads_trending_topics, which are gated behind App
+# Review + business verification. Until that clears, Meta answers with an empty
+# list rather than an error, so calling them just burns requests against an
+# account we are already trying to keep quiet. Flip to 1 once approved.
+THREADS_API_SEARCH = _env("THREADS_API_SEARCH", "0") not in ("", "0", "false")
 
 # Threads Graph API (PublisherAgent) — publishes directly, no Postiz.
 # Long-lived token for the @tala.sav account (60-day; refresh before expiry).

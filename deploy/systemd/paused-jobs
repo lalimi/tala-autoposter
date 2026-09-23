@@ -1,0 +1,19 @@
+# Jobs that must stay off. The update job re-enables every other timer on each
+# run (every 30 min), so a plain `systemctl disable` does not survive — list the
+# job here instead: run-job.sh neither re-enables these timers nor runs the job
+# if its timer fires anyway. One job name per line (the part after "tala@").
+# To resume a job, delete its line and push.
+#
+# 23.09.2026 — Tala: reach suppressed account-wide since mid-August (her own
+# manual posts fell to 7-22 views too); she posts by hand while it recovers.
+post-tala
+comment-tala
+# Denys (~1 view per post) and Max / @TheSoloHub on X (0 views): pure cost.
+post-denys
+comment-denys
+metrics-denys
+post-solohub
+metrics-solohub
+# Scrapes signals only for Tala and Denys, both paused — a browser session
+# through the proxy with nothing to feed.
+refresh

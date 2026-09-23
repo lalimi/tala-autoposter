@@ -8,6 +8,20 @@ APP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$APP"
 PY="$APP/.venv/bin/python"
 
+# Jobs listed in paused-jobs are kept off. A plain `systemctl disable` used to
+# be undone within 30 minutes by the update branch below, which re-enabled every
+# timer — Tala, Denys and Max were switched off on 23.09 and came straight back.
+PAUSED_FILE="$APP/deploy/systemd/paused-jobs"
+is_paused() {
+  [ -f "$PAUSED_FILE" ] || return 1
+  sed 's/#.*//; s/[[:space:]]//g' "$PAUSED_FILE" | grep -qxF "$1"
+}
+
+if [ "${1:-}" != "update" ] && is_paused "${1:-}"; then
+  echo "job '${1:-}' is paused (deploy/systemd/paused-jobs), skipping"
+  exit 0
+fi
+
 case "${1:-}" in
   post-tala)      exec "$PY" main.py --brand tala     --tick ;;
   post-blacksea)  exec "$PY" main.py --brand blacksea --tick ;;
@@ -32,7 +46,11 @@ case "${1:-}" in
       cp "$APP"/deploy/systemd/tala@*.timer /etc/systemd/system/ 2>/dev/null || true
       systemctl daemon-reload 2>/dev/null || true
       for t in post-tala post-blacksea post-denys post-solohub comment-tala comment-denys metrics-tala metrics-blacksea metrics-denys metrics-solohub refresh update; do
-        systemctl enable --now "tala@$t.timer" >/dev/null 2>&1 || true
+        if is_paused "$t"; then
+          systemctl disable --now "tala@$t.timer" >/dev/null 2>&1 || true
+        else
+          systemctl enable --now "tala@$t.timer" >/dev/null 2>&1 || true
+        fi
       done
     fi
     ;;

@@ -29,11 +29,12 @@ class PublisherAgent:
         # Resolved at publish time so the scheduler picks up auto-refreshes.
         self.token = ""
 
-    def publish(self, text: str, image_url: str | None = None) -> dict:
+    def publish(self, text: str, image_url: str | None = None,
+                topic_tag: str | None = None) -> dict:
         """Publish a single standalone post, optionally with an image."""
         self.token = get_valid_token(self.brand)  # refreshes itself near expiry
         self._check_len(text)
-        pid = self._publish_one(text, image_url=image_url)
+        pid = self._publish_one(text, image_url=image_url, topic_tag=topic_tag)
         return {"post_id": pid, "parts": [pid], "raw": {"id": pid}}
 
     def reply_to(self, text: str, reply_to_id: str) -> dict:
@@ -44,10 +45,11 @@ class PublisherAgent:
         pid = self._publish_one(text, reply_to_id=reply_to_id, timeout=25, interval=2)
         return {"post_id": pid, "parts": [pid], "raw": {"id": pid}}
 
-    def publish_thread(self, parts: list[str], image_url: str | None = None) -> dict:
+    def publish_thread(self, parts: list[str], image_url: str | None = None,
+                       topic_tag: str | None = None) -> dict:
         """Publish a reply-chain: post part 0, then each part as a reply to the
-        previous one (Threads `reply_to_id`). An image, if given, goes on the
-        first part (the one that shows in the feed)."""
+        previous one (Threads `reply_to_id`). An image and a topic tag, if given,
+        go on the first part — the one that shows in the feed and in search."""
         self.token = get_valid_token(self.brand)
         parts = [p for p in parts if p and p.strip()]
         if not parts:
@@ -62,6 +64,7 @@ class PublisherAgent:
             pid = self._publish_one(
                 p, reply_to_id=reply_to,
                 image_url=image_url if i == 0 else None,
+                topic_tag=topic_tag if i == 0 else None,
                 timeout=25, interval=2,
             )
             ids.append(pid)
@@ -73,9 +76,15 @@ class PublisherAgent:
         if len(text) > MAX_LEN:
             raise ValueError(f"post is {len(text)} chars; Threads limit is {MAX_LEN}")
 
+    @staticmethod
+    def clean_topic_tag(tag: str | None) -> str | None:
+        """Threads topic tags: 1-50 characters, no "." or "&", one per post."""
+        tag = (tag or "").replace(".", "").replace("&", "").strip()
+        return tag[:50].strip() or None
+
     def _publish_one(
         self, text: str, reply_to_id: str | None = None,
-        image_url: str | None = None,
+        image_url: str | None = None, topic_tag: str | None = None,
         timeout: int = 45, interval: int = 3,
     ) -> str:
         if image_url:
@@ -86,7 +95,17 @@ class PublisherAgent:
             params = {"text": text, "media_type": "TEXT"}
         if reply_to_id:
             params["reply_to_id"] = reply_to_id  # makes this post a reply -> chain
-        container = self._post("/me/threads", params)
+        # A topic tag puts the post in that topic's search and feed for people
+        # who do not follow the account. Until 24.09.2026 no post ever carried
+        # one. A rejected tag must not cost the post, so retry without it.
+        tag = self.clean_topic_tag(topic_tag)
+        if tag:
+            try:
+                container = self._post("/me/threads", {**params, "topic_tag": tag})
+            except RuntimeError:
+                container = self._post("/me/threads", params)
+        else:
+            container = self._post("/me/threads", params)
         creation_id = container.get("id")
         if not creation_id:
             raise RuntimeError(f"container creation failed: {container}")

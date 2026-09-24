@@ -155,12 +155,21 @@ def run_pipeline(
         if image_url:
             logger.info("[%s] attaching image | %s", brand.key, image_url)
 
+    # Topic tag (Threads only; X has no such field): puts the post in that
+    # topic's search and feed for people who don't follow the account.
+    extra = {}
+    if brand.platform == "threads":
+        tag = memory.topic_tag(topic)
+        if tag:
+            extra["topic_tag"] = tag
+            logger.info("[%s] topic tag: %s", brand.key, tag)
+
     try:
         pub = PublisherAgent(brand)
         if parts:
-            result = pub.publish_thread(parts, image_url=image_url)
+            result = pub.publish_thread(parts, image_url=image_url, **extra)
         else:
-            result = pub.publish(post_text, image_url=image_url)
+            result = pub.publish(post_text, image_url=image_url, **extra)
         post_id = result.get("post_id")
         memory.mark_published(row_id, post_id)
         logger.info(

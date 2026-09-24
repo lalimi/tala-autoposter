@@ -22,6 +22,14 @@ class MemoryAgent:
         with open(self.topics_file, encoding="utf-8") as f:
             return [t["name"] for t in json.load(f)["topics"]]
 
+    def topic_tag(self, name: str) -> str | None:
+        """The Threads topic tag declared for a rotation topic, if any."""
+        with open(self.topics_file, encoding="utf-8") as f:
+            for t in json.load(f)["topics"]:
+                if t.get("name") == name:
+                    return t.get("tag") or None
+        return None
+
     def get_least_used_topic(self) -> str:
         return store.least_used_topic(self._topic_names(), prefix=self.prefix)
 

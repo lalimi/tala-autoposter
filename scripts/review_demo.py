@@ -140,6 +140,13 @@ def permalink(token: str, media_id: str) -> str:
     return api("GET", f"/v1.0/{media_id}", token, fields="permalink").get("permalink", "")
 
 
+def show_link(what: str, link: str) -> None:
+    """Print a new post's link and put it on the clipboard for the browser."""
+    print(f"  ✓ {what} published: {link}")
+    if link and to_clipboard(link):
+        print("  ✓ Link copied — paste it into the browser to show it.")
+
+
 def login(app_secret: str) -> str:
     step(1, "Log in with Threads and grant access (OAuth)", ", ".join(SCOPES))
     url = AUTHORIZE + "?" + urllib.parse.urlencode({
@@ -213,8 +220,8 @@ def reply_to_found(token: str, post: dict | None) -> str | None:
     if not ask_yes("Publish this reply under the post now?"):
         return None
     reply_id = publish(token, REPLY_TEXT, reply_to_id=post["id"])
-    print(f"  ✓ Reply published: {permalink(token, reply_id)}")
-    pause("Open the link to show the reply, then press Enter…")
+    show_link("Reply", permalink(token, reply_id))
+    pause("Show the reply in the browser, then press Enter…")
     return reply_id
 
 
@@ -241,8 +248,8 @@ def publish_own(token: str) -> str | None:
     if not ask_yes("Publish this post to the connected account now?"):
         return None
     media_id = publish(token, POST_TEXT)
-    print(f"  ✓ Published: {permalink(token, media_id)}")
-    pause("Open the link to show the live post, then press Enter…")
+    show_link("Post", permalink(token, media_id))
+    pause("Show the live post in the browser, then press Enter…")
     return media_id
 
 
@@ -274,7 +281,7 @@ def delete_test_posts(token: str, posts: list[tuple[str, str]]) -> None:
     for label, media_id in posts:
         api("DELETE", f"/v1.0/{media_id}", token)
         print(f"  ✓ {label} deleted.")
-    pause("Refresh the links to show they are gone, then press Enter…")
+    pause("Refresh their browser tabs to show they are gone, then press Enter…")
 
 
 def main() -> None:

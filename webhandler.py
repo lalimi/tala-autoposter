@@ -1,36 +1,28 @@
-"""Shared Vercel serverless handler — runs ONE post tick for a given brand.
+"""Retired Vercel serverless handler — answers 410 and runs nothing.
 
-Each brand gets a thin endpoint under api/ that subclasses BaseBrandHandler and
-sets `brand_key`:
-  * api/cron.py     -> @tala.sav  (every 2h via GitHub Actions)
-  * api/blacksea.py -> @blacksea  (3-4x/day via GitHub Actions)
+Production is the Hetzner VPS (deploy/systemd). This Vercel copy ran in
+parallel with it from at least 12.07.2026 until 24.09.2026: GitHub Actions
+called it every 30 minutes, it shared the Supabase tables and the Threads
+tokens, and it deployed from main automatically. For Tala that meant 6-11 posts
+a day instead of the planned cadence (the recovery cadence set on 17.09 never
+took effect), 44 posts landing in near-simultaneous pairs as both schedulers
+passed the same min-gap check, and 95 chains cut after their second part by
+Vercel's 60-second function limit.
 
-IMPORTANT: each api/ file must define a real `class handler(...)` at module
-scope — Vercel's Python builder detects functions by that symbol statically, so
-a dynamic `handler = factory(...)` assignment is NOT recognised (it makes Vercel
-see zero functions and fail the build with "unmatched function pattern").
-
-Vercel Hobby crons only fire daily, so the real cadence comes from GitHub
-Actions hitting these URLs (see .github/workflows/).
-
-Security: set CRON_SECRET on Vercel; callers must send
-`Authorization: Bearer <CRON_SECRET>`.
-
-Required Vercel env vars: SUPABASE_URL, SUPABASE_SERVICE_KEY, ANTHROPIC_API_KEY,
-CRON_SECRET. Per-brand Threads tokens live in Supabase ({prefix}_token).
+The GitHub workflows are gone, but Vercel still redeploys whatever is on main,
+so the endpoints stay inert here rather than relying on the project being
+deleted. Each api/ file must keep a real `class handler(...)` at module scope:
+without it Vercel's Python builder finds no functions and the build fails —
+which would leave the previous, still-posting deployment live.
 """
 from __future__ import annotations
 
 import json
-import logging
-import os
 from http.server import BaseHTTPRequestHandler
 
 
 class BaseBrandHandler(BaseHTTPRequestHandler):
-    """One tick for `brand_key`. Subclasses set the brand and (optionally) mode.
-    mode="post" publishes an original post; mode="comment" replies under a
-    scraped candidate post."""
+    """Kept only so the api/ endpoints still build; every request gets 410."""
 
     brand_key = "tala"  # overridden by each api/ endpoint
     mode = "post"       # "post" | "comment"
@@ -43,33 +35,8 @@ class BaseBrandHandler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def _run(self) -> None:
-        secret = (os.getenv("CRON_SECRET") or "").strip()
-        if secret and self.headers.get("Authorization") != f"Bearer {secret}":
-            self._send(401, {"ok": False, "error": "unauthorized"})
-            return
-        try:
-            from config.brands import get_brand
+        self._send(410, {"ok": False, "brand": self.brand_key,
+                         "error": "retired: production runs on Hetzner"})
 
-            brand = get_brand(self.brand_key)
-            if self.mode == "comment":
-                from pipeline import run_comment
-                text = run_comment(brand, publish=True, respect_min_gap=True)
-            else:
-                from pipeline import run_pipeline
-                text = run_pipeline(brand, publish=True, respect_min_gap=True)
-
-            body = {"ok": True, "brand": self.brand_key, "mode": self.mode}
-            if text is None:  # self-throttled / nothing to do
-                body["skipped"] = True
-            else:
-                body["preview"] = text[:100]
-            self._send(200, body)
-        except Exception as exc:  # noqa: BLE001
-            # Log full detail server-side (Vercel logs); never echo it in the
-            # response — tracebacks can contain secrets (e.g. the API key).
-            logging.exception("%s tick failed (%s)", self.mode, self.brand_key)
-            self._send(500, {"ok": False, "error": type(exc).__name__})
-
-    # External cron services use GET or POST — accept both.
     do_GET = _run
     do_POST = _run

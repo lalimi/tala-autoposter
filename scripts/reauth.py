@@ -103,9 +103,12 @@ def main() -> None:
         raise SystemExit(f"Новий токен втратив би: {', '.join(sorted(lost))} — "
                          "без них зламається постинг. Нічого не змінено.")
     store.save_token(token, expires_at, prefix=prefix)
-    added = sorted(got - have)
-    print(f"Збережено. Нові дозволи: {', '.join(added) or 'немає'}. "
-          f"Діє {(expires_at - time.time()) / 86400:.0f} днів.")
+    # Report the target permissions directly. Diffing against the old token is
+    # unreliable: debug_token reports the account's current grant, so the old
+    # token already shows the new permissions once consent is given.
+    wanted = ("threads_delete", "threads_keyword_search", "threads_profile_discovery")
+    print("Збережено. " + ", ".join(f"{s}: {'є' if s in got else 'НЕМАЄ'}" for s in wanted)
+          + f". Діє {(expires_at - time.time()) / 86400:.0f} днів.")
 
 
 if __name__ == "__main__":

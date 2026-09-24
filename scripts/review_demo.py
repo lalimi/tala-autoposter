@@ -76,14 +76,17 @@ def main() -> None:
     app_id = input("\n  Threads app ID: ").strip()
     app_secret = getpass.getpass("  Threads app secret (hidden): ").strip()
     with_delete = ask_yes("Is threads_delete added to the app's use case?")
+    with_profiles = ask_yes("Is threads_profile_discovery added to the app's use case?")
 
     scopes = ["threads_basic", "threads_content_publish",
               "threads_manage_insights", "threads_keyword_search"]
+    if with_profiles:
+        scopes.append("threads_profile_discovery")
     if with_delete:
         scopes.append("threads_delete")
 
     # --- OAuth --------------------------------------------------------------
-    step(0, "Log in with Threads and grant access (OAuth)", ", ".join(scopes))
+    step(1, "Log in with Threads and grant access (OAuth)", ", ".join(scopes))
     state = secrets.token_urlsafe(12)
     url = AUTHORIZE + "?" + urllib.parse.urlencode({
         "client_id": app_id, "redirect_uri": REDIRECT_URI,
@@ -101,14 +104,14 @@ def main() -> None:
     print("  ✓ Access token received — the account is connected.")
 
     # --- threads_basic ------------------------------------------------------
-    step(1, "Read the connected account's profile", "threads_basic")
+    step(2, "Read the connected account's profile", "threads_basic")
     me = api("GET", "/v1.0/me", token, fields="id,username,name,threads_biography")
     print(f"  Connected account: @{me.get('username')} ({me.get('name', '')})")
     print(f"  Account ID: {me.get('id')}")
     pause()
 
     # --- threads_keyword_search ---------------------------------------------
-    step(2, "Research what our niche is talking about", "threads_keyword_search")
+    step(3, "Research what our niche is talking about", "threads_keyword_search")
     print("  We search public posts for our niche keywords, most popular first.\n"
           "  The results tell us which topics our next posts should address.")
     words: Counter[str] = Counter()
@@ -130,13 +133,33 @@ def main() -> None:
     print("\n  We never message or tag these authors and never republish their posts.")
     pause()
 
+    # --- threads_profile_discovery ------------------------------------------
+    if with_profiles:
+        step(4, "Look up a public creator profile", "threads_profile_discovery")
+        print("  Once a week we look up public creator accounts in our niche to see\n"
+              "  which are growing and on what topics. It tells us what our audience\n"
+              "  responds to and which creators we could invite to collaborate.\n"
+              "  (With standard access only official Meta accounts can be looked up.)")
+        who = input("\n  Username to look up [threads]: ").strip().lstrip("@") or "threads"
+        prof = api("GET", "/v1.0/profile_lookup", token, username=who)
+        print(f"\n  @{prof.get('username')}  {prof.get('name', '')}"
+              f"{'  ✓ verified' if prof.get('is_verified') else ''}")
+        bio = " ".join((prof.get("biography") or "").split())
+        if bio:
+            print(f"  bio: {textwrap.shorten(bio, 90, placeholder='…')}")
+        print(f"  followers: {prof.get('follower_count')}")
+        print(f"  last 7 days: views {prof.get('views_count')}, likes {prof.get('likes_count')}, "
+              f"reposts {prof.get('reposts_count')}, quotes {prof.get('quotes_count')}")
+        print("\n  We only read public numbers. We never message these accounts through the app.")
+        pause()
+
     # --- threads_content_publish --------------------------------------------
-    step(3, "Publish a post to our own account", "threads_content_publish")
+    step(5, "Publish a post to our own account", "threads_content_publish")
     default = ("Test post from BlackSea's publishing tool, recorded for Meta "
                "app review. It will be deleted in a minute.")
     print(f"  Post text:\n    {default}")
     if not ask_yes("Publish this post to the connected account now?"):
-        print("  Skipped publishing — steps 4 and 5 need a published post.")
+        print("  Skipped publishing — the next steps need a published post.")
         return
     container = api("POST", "/v1.0/me/threads", token, media_type="TEXT", text=default)
     time.sleep(3)
@@ -147,7 +170,7 @@ def main() -> None:
     pause("Open the link to show the live post, then press Enter…")
 
     # --- threads_manage_insights --------------------------------------------
-    step(4, "Read the performance of our own post", "threads_manage_insights")
+    step(6, "Read the performance of our own post", "threads_manage_insights")
     ins = api("GET", f"/v1.0/{media_id}/insights", token,
               metric="views,likes,replies,reposts,quotes")
     for m in ins.get("data", []):
@@ -159,7 +182,7 @@ def main() -> None:
 
     # --- threads_delete -----------------------------------------------------
     if with_delete:
-        step(5, "Delete our own post", "threads_delete")
+        step(7, "Delete our own post", "threads_delete")
         print("  Used to remove our own posts that contain a mistake.")
         api("DELETE", f"/v1.0/{media_id}", token)
         print("  ✓ Post deleted.")

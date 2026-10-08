@@ -52,9 +52,12 @@ def _username(token: str) -> str | None:
     return r.json().get("username") if r.ok else None
 
 
-def _fail(what: str, r: requests.Response) -> None:
-    # Meta's error body names the problem; it never contains our secret.
-    raise SystemExit(f"{what}: HTTP {r.status_code} {r.text[:300]}\nНічого не змінено.")
+def _fail(what: str, r: requests.Response, secret: str) -> None:
+    # Meta's error for a rejected secret quotes the value it was sent, so the
+    # body is not printed as it is: the secret would end up on screen.
+    body = ("Invalid client_secret (значення приховано)" if "client_secret" in r.text
+            else r.text.replace(secret, "***")[:300])
+    raise SystemExit(f"{what}: HTTP {r.status_code} {body}\nНічого не змінено.")
 
 
 def main() -> None:
@@ -81,14 +84,14 @@ def main() -> None:
         "client_id": APP_ID, "client_secret": secret, "grant_type": "authorization_code",
         "redirect_uri": REDIRECT_URI, "code": code}, timeout=30)
     if not r.ok:
-        _fail("Обмін коду не вдався", r)
+        _fail("Обмін коду не вдався", r, secret)
     short = r.json()["access_token"]
 
     r = requests.get(f"{GRAPH}/access_token", params={
         "grant_type": "th_exchange_token", "client_secret": secret,
         "access_token": short}, timeout=30)
     if not r.ok:
-        _fail("Не вдалося отримати довгостроковий токен", r)
+        _fail("Не вдалося отримати довгостроковий токен", r, secret)
     token = r.json()["access_token"]
     expires_at = time.time() + int(r.json().get("expires_in", 60 * 86400))
 

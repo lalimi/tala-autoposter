@@ -116,6 +116,11 @@ def api(method: str, path: str, token: str | None = None, soft: bool = False,
             return json.loads(r.read() or b"{}")
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
+        if "client_secret" in params:
+            # Meta's error for a rejected secret quotes the value it was sent,
+            # which would put the secret on screen and in the film.
+            body = ("Invalid client_secret (value not shown)" if "client_secret" in body
+                    else body.replace(params["client_secret"], "***"))
         if soft:
             return {"error": body[:200]}
         sys.exit(f"\n  API error {e.code} on {method} {path}:\n  {body[:400]}")
@@ -239,7 +244,7 @@ def wait_for_code(baseline: str, timeout: float = 900) -> str:
         if typing and select.select([sys.stdin], [], [], 0.5)[0]:
             line = sys.stdin.readline()
             typing = bool(line)  # '' is end-of-input: stop watching the terminal
-            if line.strip():
+            if line.strip() and "://" not in line:
                 return line.strip().removesuffix("#_")
         elif not typing:
             time.sleep(0.5)
@@ -256,8 +261,10 @@ def login(app_secret: str) -> str:
         "client_id": APP_ID, "redirect_uri": REDIRECT_URI, "scope": ",".join(SCOPES),
         "response_type": "code", "state": secrets.token_urlsafe(12),
     })
-    # The link also replaces the app secret that was just pasted from the clipboard.
-    copied = to_clipboard(url)
+    # Auto mode opens the link itself, so the clipboard is only emptied: that
+    # removes the app secret pasted from it, and a link left there was pasted
+    # as the "secret" on the next run (08.10.2026).
+    copied = to_clipboard("" if AUTO else url)
     opened = False
     if AUTO:
         print("  The Threads login screen opens in a private browser window,\n"
@@ -265,7 +272,8 @@ def login(app_secret: str) -> str:
         time.sleep(5)  # time to read the step before the browser covers it
         opened = open_in_browser(url)
     if opened:
-        code = wait_for_code(url)
+        code = wait_for_code("")
+        to_clipboard("")
         focus_terminal()
     else:
         print("  Open the login link in a private browser window, so the demo starts\n"
@@ -544,6 +552,20 @@ def fresh_private_window() -> bool:
     return private_window_in_front()
 
 
+def ask_secret() -> str:
+    """Ask for the app secret until what is pasted can be one. On 08.10.2026 the
+    clipboard still held a login link, and the take failed a minute later."""
+    prompt = "Встав секрет застосунку Threads один раз і натисни Enter (символи не показуються): "
+    while True:
+        value = getpass.getpass(prompt).strip()
+        if 16 <= len(value) <= 64 and "://" not in value and not re.search(r"\s", value):
+            return value
+        what = ("нічого" if not value else "посилання" if "://" in value
+                else f"текст на {len(value)} символів")
+        print(f"Це не секрет: у буфері зараз {what}.\n"
+              "Скопіюй «Секрет приложения Threads» у кабінеті Meta і встав ще раз.")
+
+
 def record_demo() -> None:
     """Film the walk-through with glide and export it as an MP4. Messages for
     the person running it are in Ukrainian; they print outside the filmed part."""
@@ -575,10 +597,11 @@ def record_demo() -> None:
     try:
         # The secret first, off camera: the private window must be seconds old
         # when the login link opens, not as old as the paste took.
-        app_secret = getpass.getpass(
-            "Встав секрет застосунку Threads і натисни Enter (символи не показуються): ").strip()
-        if not app_secret:
-            sys.exit("Секрет порожній.")
+        app_secret = ask_secret()
+        print(f"\nЗараз відкриється Safari з входом у Threads.\n"
+              f"Увійди як {ACCOUNT}. Акаунт lali.mi не підійде: застосунок його не приймає.\n"
+              f"На кнопці має бути «Продовжити як {ACCOUNT}».", flush=True)
+        time.sleep(7)
         if not fresh_private_window():
             sys.exit(f"Не вдалося відкрити приватне вікно {BROWSER}. "
                      f"Відкрий {BROWSER}, натисни ⌘⇧N і запусти ще раз.")
@@ -602,6 +625,9 @@ def record_demo() -> None:
         if was_zoomed == "false":
             terminal_script("set zoomed of front window to false")
 
+    if "client_secret" in reason:
+        reason = ("Meta не прийняла секрет застосунку. Скопіюй його в кабінеті Meta ще раз "
+                  "і запусти команду знову.")
     if reason:
         draft = f"\nЧорновий запис лишився тут: {project}" if recording else ""
         sys.exit(f"\nЗапис зупинено, відео не зроблено.\nПричина: {reason}{draft}")

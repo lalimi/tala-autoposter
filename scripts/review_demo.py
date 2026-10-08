@@ -504,6 +504,28 @@ def terminal_script(*lines: str) -> str:
         return ""
 
 
+def private_window_in_front() -> bool:
+    """Whether the browser's front window is a private one (its title says so)."""
+    _, _, text = glide("agent", "--observe", BROWSER, "--limit", "3")
+    title = next((line for line in text.splitlines() if line.startswith("Window:")), "")
+    return bool(re.search(r"приватн|private", title, re.IGNORECASE))
+
+
+def ensure_private_window() -> bool:
+    """Links open in the browser's front window. On 08.10.2026 the private window
+    had been closed, the login landed in the personal one and offered the
+    personal account — so check, and open a private window (⌘⇧N) if needed."""
+    for _ in range(2):
+        if private_window_in_front():
+            return True
+        subprocess.run(["open", "-a", BROWSER], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+        time.sleep(2)
+        glide("agent", "--key", "super+shift+n", "--app", BROWSER, "--no-mark")
+        time.sleep(2)
+    return private_window_in_front()
+
+
 def record_demo() -> None:
     """Film the walk-through with glide and export it as an MP4. Messages for
     the person running it are in Ukrainian; they print outside the filmed part."""
@@ -518,6 +540,11 @@ def record_demo() -> None:
     if free_gb < 1.5:  # the raw take plus the export need well under 1 GB
         sys.exit(f"На диску лише {free_gb:.1f} ГБ вільного місця, а запису потрібно "
                  "щонайменше 1,5 ГБ. Звільни місце і запусти ще раз.")
+
+    if not ensure_private_window():
+        sys.exit(f"Не вдалося відкрити приватне вікно {BROWSER}.\n"
+                 f"Відкрий {BROWSER}, натисни ⌘⇧N і запусти цю команду ще раз.")
+    focus_terminal()
 
     stamp = time.strftime("%Y%m%d-%H%M%S")
     project = Path.home() / "Movies" / f"blacksea-meta-review-{stamp}.glide"

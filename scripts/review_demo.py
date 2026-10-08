@@ -514,8 +514,10 @@ def record_demo() -> None:
                  "2. Системні параметри → Приватність і безпека → Запис екрана: "
                  "увімкни Термінал.\n"
                  "3. Закрий Термінал (⌘Q), відкрий знову і запусти цю команду ще раз.")
-    if shutil.disk_usage(Path.home()).free < 3 * 1024 ** 3:
-        sys.exit("На диску менше 3 ГБ вільного місця. Звільни місце і запусти ще раз.")
+    free_gb = shutil.disk_usage(Path.home()).free / 1024 ** 3
+    if free_gb < 1.5:  # the raw take plus the export need well under 1 GB
+        sys.exit(f"На диску лише {free_gb:.1f} ГБ вільного місця, а запису потрібно "
+                 "щонайменше 1,5 ГБ. Звільни місце і запусти ще раз.")
 
     stamp = time.strftime("%Y%m%d-%H%M%S")
     project = Path.home() / "Movies" / f"blacksea-meta-review-{stamp}.glide"

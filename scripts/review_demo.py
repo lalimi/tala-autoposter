@@ -69,6 +69,7 @@ SCOPES = [
     "threads_manage_replies", "threads_read_replies",
     "threads_delete", "threads_keyword_search", "threads_profile_discovery",
 ]
+POLICY_URL = "https://lalimi.github.io/blacksea-privacy/"
 # The only account the demo may post to.
 ACCOUNT = "blacksea.in.ua"
 BROWSER = "Safari"
@@ -284,7 +285,13 @@ def login(app_secret: str) -> str:
 
 def show_profile(token: str) -> None:
     step(2, "Read the connected account's profile", "threads_basic")
-    me = api("GET", "/v1.0/me", token, fields="id,username,name,threads_biography")
+    me = api("GET", "/v1.0/me", token, soft=True,
+             fields="id,username,name,threads_biography")
+    if "error" in me:
+        # Meta refuses any account that is not a tester of the app.
+        sys.exit(f"\n  The account that granted access cannot use this app, so it is not\n"
+                 f"  @{ACCOUNT}. Nothing was published. Log in as @{ACCOUNT}: the button\n"
+                 f"  on the consent screen must name that account.")
     print(f"  Connected account: @{me.get('username')} ({me.get('name', '')})")
     print(f"  Account ID: {me.get('id')}")
     if me.get("threads_biography"):
@@ -432,13 +439,17 @@ def remove_leftovers(token: str | None, published: list[tuple[str, str, str]]) -
               else f"  {label} is still live — delete it by hand: {link}")
 
 
-def run_demo() -> None:
+def run_demo(app_secret: str = "") -> None:
     if AUTO:
         clear()
     print("BlackSea — Threads publishing tool\n"
           "Walk-through of every permission requested in app review.\n"
           f"\n  Threads app ID: {APP_ID}")
-    app_secret = getpass.getpass("  Threads app secret (hidden): ").strip()
+    if app_secret:
+        print("  Threads app secret: entered (hidden)")
+        time.sleep(4)
+    else:
+        app_secret = getpass.getpass("  Threads app secret (hidden): ").strip()
     token = None
     published: list[tuple[str, str, str]] = []
     try:
@@ -511,18 +522,25 @@ def private_window_in_front() -> bool:
     return bool(re.search(r"приватн|private", title, re.IGNORECASE))
 
 
-def ensure_private_window() -> bool:
-    """Links open in the browser's front window. On 08.10.2026 the private window
-    had been closed, the login landed in the personal one and offered the
-    personal account — so check, and open a private window (⌘⇧N) if needed."""
-    for _ in range(2):
-        if private_window_in_front():
-            return True
-        subprocess.run(["open", "-a", BROWSER], stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL)
-        time.sleep(2)
-        glide("agent", "--key", "super+shift+n", "--app", BROWSER, "--no-mark")
-        time.sleep(2)
+def fresh_private_window() -> bool:
+    """Open a new private window (⌘⇧N) and leave it in front of the browser.
+
+    Links go to the browser's front window, but an existing private window
+    cannot be trusted: on 08.10.2026 one opened 13 minutes earlier was still
+    "in front", yet the login landed in the personal window and offered the
+    personal account (Safari locks private windows left in the background).
+    A window opened seconds before the link does take it. The policy page is
+    loaded into it straight away, so the film never shows a start page with
+    personal favourites."""
+    quiet = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+    subprocess.run(["open", "-a", BROWSER], **quiet)
+    time.sleep(2)
+    glide("agent", "--key", "super+shift+n", "--app", BROWSER, "--no-mark")
+    time.sleep(2)
+    if not private_window_in_front():
+        return False
+    subprocess.run(["open", "-a", BROWSER, POLICY_URL], **quiet)
+    time.sleep(3)
     return private_window_in_front()
 
 
@@ -541,11 +559,6 @@ def record_demo() -> None:
         sys.exit(f"На диску лише {free_gb:.1f} ГБ вільного місця, а запису потрібно "
                  "щонайменше 1,5 ГБ. Звільни місце і запусти ще раз.")
 
-    if not ensure_private_window():
-        sys.exit(f"Не вдалося відкрити приватне вікно {BROWSER}.\n"
-                 f"Відкрий {BROWSER}, натисни ⌘⇧N і запусти цю команду ще раз.")
-    focus_terminal()
-
     stamp = time.strftime("%Y%m%d-%H%M%S")
     project = Path.home() / "Movies" / f"blacksea-meta-review-{stamp}.glide"
     video = Path.home() / "Desktop" / f"blacksea-threads-review-{stamp}.mp4"
@@ -557,28 +570,41 @@ def record_demo() -> None:
     terminal_script("set font size of selected tab of front window to 15",
                     "set zoomed of front window to true")
 
-    ok, _, text = glide("--json", "record", "start", "-o", str(project),
-                        "--display", "main", "--fps", "30")
-    if not ok:
-        sys.exit(f"Запис не почався:\n{text[-600:]}")
     reason = ""
+    recording = False
     try:
+        # The secret first, off camera: the private window must be seconds old
+        # when the login link opens, not as old as the paste took.
+        app_secret = getpass.getpass(
+            "Встав секрет застосунку Threads і натисни Enter (символи не показуються): ").strip()
+        if not app_secret:
+            sys.exit("Секрет порожній.")
+        if not fresh_private_window():
+            sys.exit(f"Не вдалося відкрити приватне вікно {BROWSER}. "
+                     f"Відкрий {BROWSER}, натисни ⌘⇧N і запусти ще раз.")
+        focus_terminal()
+        ok, _, text = glide("--json", "record", "start", "-o", str(project),
+                            "--display", "main", "--fps", "30")
+        if not ok:
+            sys.exit(f"Запис не почався:\n{text[-600:]}")
+        recording = True
         time.sleep(1)
-        run_demo()
+        run_demo(app_secret)
     except SystemExit as e:
         reason = str(e.code or "зупинено").strip()
     except KeyboardInterrupt:
         reason = "перервано (Ctrl+C)"
     finally:
-        glide("--json", "record", "stop")
+        if recording:
+            glide("--json", "record", "stop")
         if old_size:
             terminal_script(f"set font size of selected tab of front window to {old_size}")
         if was_zoomed == "false":
             terminal_script("set zoomed of front window to false")
 
     if reason:
-        sys.exit(f"\nЗапис зупинено, відео не зроблено.\nПричина: {reason}\n"
-                 f"Чорновий запис лишився тут: {project}")
+        draft = f"\nЧорновий запис лишився тут: {project}" if recording else ""
+        sys.exit(f"\nЗапис зупинено, відео не зроблено.\nПричина: {reason}{draft}")
     print("\nЗапис завершено. Обробляю відео, це займе кілька хвилин…", flush=True)
     ok, data, text = glide(
         "--json", "render", str(project), "-o", str(video), "--resolution", "1080p",

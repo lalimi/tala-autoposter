@@ -74,10 +74,11 @@ DENYS_SALES_PROBABILITY = float(_env("DENYS_SALES_PROBABILITY", "0.3") or "0.3")
 # fewer than 2 parts.
 CHAIN_PROBABILITY = float(_env("CHAIN_PROBABILITY", "1.0") or "1.0")
 
-# Same knob for the @blacksea brand account, but flipped: mostly single friendly
-# posts, only occasionally a short tips chain.
+# Same knob for the @blacksea brand account. Was 0.2 (mostly singles); measured
+# 24.09-29.10 a chain beat a single in every time window — median 171-268 views
+# against 77-137 — so half the posts are now chains.
 BLACKSEA_CHAIN_PROBABILITY = float(
-    _env("BLACKSEA_CHAIN_PROBABILITY", "0.2") or "0.2"
+    _env("BLACKSEA_CHAIN_PROBABILITY", "0.5") or "0.5"
 )
 
 # @TheSoloHub (X): content mix is ~40% how-to threads, so chains are common.

@@ -72,8 +72,7 @@ class WriterAgent:
         cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
         return cleaned.strip()
 
-    @staticmethod
-    def _fact_block(fact: dict | None) -> str:
+    def _fact_block(self, fact: dict | None) -> str:
         """Ground the post in one real, brand-owned fact. The prompt's three
         hardcoded numbers meant every post was a rephrase of the same material;
         the owner's own posts each carried something new and measured ~1.8x
@@ -81,18 +80,31 @@ class WriterAgent:
         if not fact:
             return ""
         detail = f"\nдеталі: {fact['detail']}" if fact.get("detail") else ""
+        if getattr(self.brand, "forbid_first_person", False):
+            # A platform account has no "own side of the experience"; asking
+            # for one produced first-person drafts and invented platform news
+            # ("тестуємо компонування… результатів мало").
+            own_side = (
+                "- у тебе немає власного досвіду чи історії: не вигадуй, що "
+                "платформа щось тестує, запускає, помітила чи має результати, "
+                "якщо цього немає у факті. користь і приклад — з боку читача\n"
+            )
+        else:
+            own_side = (
+                "- НЕ вигадуй історію створення продукту (скільки вечорів "
+                "робила, коли саме сіла, за який час написала) — різні пости "
+                "про той самий продукт почнуть суперечити один одному. якщо "
+                "цього нема у факті, не називай\n"
+                "- живу деталь бери зі свого боку досвіду (що відчувала, де "
+                "була, що подумала), а не з вигаданої виробничої хронології\n"
+            )
         return (
             "ФАКТ ДЛЯ ЦЬОГО ПОСТА (обовʼязково побудуй пост саме на ньому):\n"
             f"  {fact['text']}{detail}\n"
             "- це справжня інформація, не вигадуй навколо неї інших цифр\n"
             "- пост має нести саме ЦЕЙ факт як новину/суть, а не переказувати "
             "загальні тези про твій шлях\n"
-            "- НЕ вигадуй історію створення продукту (скільки вечорів робила, "
-            "коли саме сіла, за який час написала) — різні пости про той самий "
-            "продукт почнуть суперечити один одному. якщо цього нема у факті, "
-            "не називай\n"
-            "- живу деталь бери зі свого боку досвіду (що відчувала, де була, "
-            "що подумала), а не з вигаданої виробничої хронології\n"
+            f"{own_side}"
         )
 
     # HOW the first line is built, kept separate from WHAT the hook does. The
@@ -201,9 +213,29 @@ class WriterAgent:
                 out.add(n)
         return out
 
+    # Head-counts a brand can only know from its own data: "300 авторів",
+    # "340 покупців", "2000+ продуктів". None of these carry a money unit, so
+    # three invented ones went out on @blacksea in a fortnight. Small counts
+    # ("5 продуктів", "3 автори") are list structure and stay allowed.
+    _COUNT_RE = re.compile(
+        r"(?P<num>\d[\d\s ]*\d|\d)\s*\+?\s*"
+        r"(?:[а-яіїєґʼ']+\s+)?"
+        r"(?:автор\w*|продавц\w*|продукт\w*|товар\w*|покупц\w*|людей|людин\w*|"
+        r"користувач\w*|відгук\w*|учасник\w*|креатор\w*)",
+        re.IGNORECASE)
+
+    @classmethod
+    def _count_numbers(cls, text: str, floor: int = 20) -> set[str]:
+        out = set()
+        for m in cls._COUNT_RE.finditer(text or ""):
+            n = re.sub(r"[\s ]", "", m.group("num"))
+            if n and int(n) >= floor:
+                out.add(n)
+        return out
+
     @classmethod
     def _recycled_stats(cls, text: str, fact: dict | None,
-                        recent_texts: list[str]) -> set[str]:
+                        recent_texts: list[str], brand=None) -> set[str]:
         """Figures the draft pulled from older posts instead of from its own fact.
 
         The prompt hardcoded 447/94/60к as "твої справжні цифри", so the model
@@ -221,14 +253,24 @@ class WriterAgent:
         # Any digit run in the fact is fair game — it may be written there
         # without a unit ("квітень 2026 — 1027 продажів" vs a bare "1027").
         allowed = set(re.findall(r"\d+", fact_text))
+        # The brand's standing figures (blacksea: 10/15% commission, 18% + 5%
+        # tax) recur by design; treating them as recycled sent 16 October
+        # drafts — the tax posts that lead the account — back for a rewrite.
+        allowed |= set(getattr(brand, "known_figures", ()) or ())
         seen: set[str] = set()
         for t in recent_texts:
             seen |= cls._stat_numbers(t)
         return (drafted & seen) - allowed
 
+    # The lookbehind keeps "ім'я" / "сім'я" from reading as the pronoun "я":
+    # \b treats the apostrophe as a word edge, and 61 October drafts on
+    # @blacksea were sent back for "first person" — mostly over "пошту й ім'я".
     _FIRST_PERSON_RE = re.compile(
-        r"\b(я|мене|мені|мною|мій|моя|моє|мої|моєму|мого|моїй|моїм)\b",
+        r"(?<![ʼ'’])\b(я|мене|мені|мною|мій|моя|моє|мої|моєму|мого|моїй|моїм)\b",
         re.IGNORECASE)
+    # The reader's own words in quotes ("а де мій файл?") are not the brand
+    # speaking about itself.
+    _QUOTED_RE = re.compile(r"«[^»]*»|\"[^\"\n]*\"|“[^”]*”|„[^“”]*[“”]")
     # Ukrainian drops the subject pronoun, so the giveaway is a 1sg past-tense
     # verb opening a sentence: "Відкрила список чатів, написала в три."
     _FIRST_PERSON_VERB_RE = re.compile(
@@ -250,10 +292,11 @@ class WriterAgent:
         """
         if not getattr(brand, "forbid_first_person", False):
             return None
-        m = cls._FIRST_PERSON_RE.search(text or "")
+        text = cls._QUOTED_RE.sub(" ", text or "")
+        m = cls._FIRST_PERSON_RE.search(text)
         if m:
             return m.group(0)
-        m = cls._FIRST_PERSON_VERB_RE.search(text or "")
+        m = cls._FIRST_PERSON_VERB_RE.search(text)
         return m.group(0).strip() if m else None
 
     @classmethod
@@ -269,7 +312,7 @@ class WriterAgent:
         """
         if not getattr(brand, "require_fact_figures", False):
             return set()
-        drafted = cls._stat_numbers(text)
+        drafted = cls._stat_numbers(text) | cls._count_numbers(text)
         if not drafted:
             return set()
         fact_text = " ".join(filter(None, [
@@ -487,7 +530,7 @@ class WriterAgent:
 
         # Figures recycled from older posts, rather than taken from this post's
         # own fact — the single biggest driver of "все однотипне".
-        recycled = self._recycled_stats(text, fact, recent_texts or [])
+        recycled = self._recycled_stats(text, fact, recent_texts or [], self.brand)
         if recycled:
             logger.info("draft recycled stat(s) %s from older posts — regenerating",
                         ", ".join(sorted(recycled)))
@@ -498,7 +541,7 @@ class WriterAgent:
                 "блоку «ФАКТ ДЛЯ ЦЬОГО ПОСТА». якщо потрібного числа там немає, "
                 "пиши без цифр зовсім. поверни лише текст."
             )
-            still = self._recycled_stats(text, fact, recent_texts or [])
+            still = self._recycled_stats(text, fact, recent_texts or [], self.brand)
             if still:
                 logger.warning("still recycling %s after retry",
                                ", ".join(sorted(still)))

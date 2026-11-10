@@ -23,6 +23,17 @@ logger = logging.getLogger("tala")
 COMMENT_CANDIDATES_PER_TICK = 5
 
 
+def recent_hook_keys(formats: list[str]) -> list[str]:
+    """Hook keys from stored formats ("chain:myth" -> "myth")."""
+    return [f.split(":", 1)[1] for f in formats if f and ":" in f]
+
+
+def pick_brand_hook(hooks, recent_keys: list[str]):
+    """Weighted pick that never repeats either of the last two hooks."""
+    pool = [h for h in hooks if h.key not in set(recent_keys)] or list(hooks)
+    return random.choices(pool, weights=[h.weight for h in pool], k=1)[0]
+
+
 def run_pipeline(
     brand: Brand = TALA, publish: bool = True, respect_min_gap: bool = False
 ) -> str | None:
@@ -75,21 +86,31 @@ def run_pipeline(
     from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc)
-    # A brand may weight the rotation instead of taking every hook equally
-    # often; the cycle holds indexes into HOOK_TYPES.
-    if brand.hook_cycle:
-        hook_index = brand.hook_cycle[now.hour % len(brand.hook_cycle)]
+    brand_hook = None
+    hook_index = -1
+    if brand.hooks:
+        # A brand with its own hooks draws one by weight. The hour cycle below
+        # is useless for an account that posts at the same hours every day.
+        brand_hook = pick_brand_hook(
+            brand.hooks, recent_hook_keys(store.recent_formats(brand.table_prefix, 2)))
+        hook, opening = brand_hook.text, None
+        logger.info("[%s] hook: %s", brand.key, brand_hook.key)
     else:
-        hook_index = now.hour % len(writer.HOOK_TYPES)
-    hook = writer.HOOK_TYPES[hook_index]
-    # Rotate the grammar of the first line independently of the hook, on a
-    # different stride, so the same hook doesn't keep producing the same
-    # construction. 8 hooks x 8 forms with co-prime strides = long cycle.
-    opening = writer.OPENING_FORMS[
-        (now.hour * 3 + now.day) % len(writer.OPENING_FORMS)
-    ]
-    logger.info("[%s] hook: %s | opening: %s",
-                brand.key, hook[:38], opening[:38])
+        # A brand may weight the rotation instead of taking every hook equally
+        # often; the cycle holds indexes into HOOK_TYPES.
+        if brand.hook_cycle:
+            hook_index = brand.hook_cycle[now.hour % len(brand.hook_cycle)]
+        else:
+            hook_index = now.hour % len(writer.HOOK_TYPES)
+        hook = writer.HOOK_TYPES[hook_index]
+        # Rotate the grammar of the first line independently of the hook, on a
+        # different stride, so the same hook doesn't keep producing the same
+        # construction. 8 hooks x 8 forms with co-prime strides = long cycle.
+        opening = writer.OPENING_FORMS[
+            (now.hour * 3 + now.day) % len(writer.OPENING_FORMS)
+        ]
+        logger.info("[%s] hook: %s | opening: %s",
+                    brand.key, hook[:38], opening[:38])
 
     # Chain vs single is brand-tuned (Tala leans chains, blacksea leans singles),
     # except that a list hook needs the room: "ось 30 з них" cannot be delivered
@@ -109,10 +130,16 @@ def run_pipeline(
                                  via_bio=via_bio, opening=opening)
         shaped, shape_key = True, shape.key
 
-    force_chain = hook_index in writer.LIST_HOOK_INDEXES
-    if not shaped and (force_chain or random.random() < brand.chain_probability):
+    if brand_hook is not None and brand_hook.chain is not None:
+        want_chain = brand_hook.chain
+    else:
+        want_chain = (hook_index in writer.LIST_HOOK_INDEXES
+                      or random.random() < brand.chain_probability)
+    # Humour forms skip the de-slop editor, which flattens them into prose.
+    deslop = not (brand_hook is not None and brand_hook.keep_form)
+    if not shaped and want_chain:
         parts = writer.run_chain(brief, memory, sell=sell, hook=hook,
-                                 via_bio=via_bio, opening=opening)
+                                 via_bio=via_bio, opening=opening, deslop=deslop)
         if len(parts) < 2:
             parts = None  # too short to be a chain -> fall back to a single post
 
@@ -121,8 +148,10 @@ def run_pipeline(
         fmt = shape_key if shaped else "chain"
     else:
         post_text = writer.run(brief, memory, sell=sell, hook=hook,
-                               via_bio=via_bio, opening=opening)
+                               via_bio=via_bio, opening=opening, deslop=deslop)
         fmt = "single"
+    if brand_hook is not None:
+        fmt = f"{fmt}:{brand_hook.key}"
 
     # Retire the fact so the next post reaches for different material.
     fact = brief.get("fact")

@@ -200,7 +200,9 @@ class WriterAgent:
         r"(?P<num>\d[\d\s ]*\d|\d)\s*"
         # one optional adjective in between: "993 безкоштовних завантажень"
         r"(?:[а-яіїєґʼ']+\s+)?"
-        r"(?P<unit>грн|₴|%|к\b|тис\b|продаж\w*|завантаж\w*|оплат\w*|"
+        # "грив[ен]" covers гривня/гривні/гривень: only "грн" was here, so a
+        # spelled-out "47 гривень за годину" slipped past on 10.11.
+        r"(?P<unit>грн|грив[ен]\w*|₴|%|к\b|тис\b|продаж\w*|завантаж\w*|оплат\w*|"
         r"платеж\w*|покуп\w*|підписник\w*)",
         re.IGNORECASE)
 
@@ -395,7 +397,7 @@ class WriterAgent:
 
     def run(self, brief: dict, memory, sell: bool = False,
             hook: str | None = None, via_bio: bool = False,
-            opening: str | None = None) -> str:
+            opening: str | None = None, deslop: bool = True) -> str:
         recent_topics = memory.get_recent_topics()
         best_post = memory.get_best_performing_post()
         recent_openings = memory.recent_openings()
@@ -483,6 +485,7 @@ class WriterAgent:
             client, text, user_message, recent_openings,
             sell=sell, via_bio=via_bio,
             fact=brief.get("fact"), recent_texts=memory.recent_post_texts(),
+            deslop=deslop,
         )
 
         # Last resort: hard-trim on a paragraph/line boundary so we never 400.
@@ -496,7 +499,8 @@ class WriterAgent:
                       recent_openings: list[str], *, sell: bool = False,
                       via_bio: bool = False, is_chain: bool = False,
                       fact: dict | None = None,
-                      recent_texts: list[str] | None = None) -> str:
+                      recent_texts: list[str] | None = None,
+                      deslop: bool = True) -> str:
         """Every code-level check a draft must pass, for singles AND chains.
 
         These lived inline in run() only, so chains — 90% of Tala's output — went
@@ -614,7 +618,12 @@ class WriterAgent:
                 if still:
                     logger.warning("still contains a figure (%r) after retry", still)
 
-        text = self._deslop(client, text, is_chain=is_chain)
+        if deslop:
+            text = self._deslop(client, text, is_chain=is_chain)
+        else:
+            # The editor was also what fixed sentence case; a raw draft can
+            # come back all lowercase ("мама: «…»"), which the brand voice bans.
+            text = self._sentence_case(text)
 
         # Link policy runs LAST: the de-slop rewrite re-adds URLs an earlier pass
         # removed, which is how a sell=False post still went out with the link.
@@ -630,7 +639,8 @@ class WriterAgent:
 
     def run_chain(self, brief: dict, memory, max_parts: int | None = None,
                   sell: bool = False, hook: str | None = None,
-                  via_bio: bool = False, opening: str | None = None) -> list[str]:
+                  via_bio: bool = False, opening: str | None = None,
+                  deslop: bool = True) -> list[str]:
         """Write a checklist / mini-guide as a short post chain. Returns the parts
         (each <=500 chars). The pipeline publishes them as a Threads reply-chain.
         Length is capped by settings.CHAIN_MAX_PARTS (3 on Vercel, more on a VPS)."""
@@ -678,6 +688,7 @@ class WriterAgent:
             client, raw, user_message, recent_openings,
             sell=sell, via_bio=via_bio, is_chain=True,
             fact=brief.get("fact"), recent_texts=memory.recent_post_texts(),
+            deslop=deslop,
         )
         parts = [p.strip() for p in re.split(r"\n?-{3,}\n?", raw) if p.strip()]
         return [self._trim(p) for p in parts][:max_parts]
@@ -889,6 +900,9 @@ class WriterAgent:
         "конкретика по суті, зрозуміло навіщо це читати. НЕ додавай художніх "
         "деталей (чай, чайник, світло, погода, час на годиннику як атмосфера) — "
         "у цій ніші так не пишуть.\n"
+        "жарт, іронія, сценка з репліками в «лапках», «очікування / реальність», "
+        "словничок чи вигадана назва звички — це навмисна форма, а не штамп: "
+        "збережи її і панчлайн, сухим текстом не переписуй.\n"
         "голос, факти, цифри й будь-які посилання ЗБЕРЕЖИ. довжину не збільшуй."
     )
 
@@ -969,6 +983,26 @@ class WriterAgent:
         while "  " in text:
             text = text.replace("  ", " ")
         return text.strip()
+
+    # A lowercase letter that starts a line or follows ". ", "! ", "? ", "… ".
+    # Text inside «…» is a quoted reply and keeps its own case.
+    _SENTENCE_START_RE = re.compile(
+        r"(^|[.!?…]\s+)([a-zа-яіїєґ])(?![a-z]*://)", re.MULTILINE)
+
+    @classmethod
+    def _sentence_case(cls, text: str) -> str:
+        """Capitalise sentence starts outside quotes, leaving the rest as is."""
+        out, depth = [], 0
+        for chunk in re.split(r"([«»])", text or ""):
+            if chunk == "«":
+                depth += 1
+            elif chunk == "»":
+                depth = max(0, depth - 1)
+            elif depth == 0:
+                chunk = cls._SENTENCE_START_RE.sub(
+                    lambda m: m.group(1) + m.group(2).upper(), chunk)
+            out.append(chunk)
+        return "".join(out)
 
     @staticmethod
     def _strip_dividers(text: str) -> str:

@@ -41,6 +41,10 @@ WRITER_MODEL = _env(
     "WRITER_MODEL", "kimi-k2.6" if KIMI_API_KEY else "claude-sonnet-5"
 )
 WRITER_MAX_TOKENS = int(_env("WRITER_MAX_TOKENS", "800") or "800")
+# Used through the direct Anthropic key when the Kimi account runs out of
+# balance. On 10.11.2026 it was suspended for "insufficient balance" and every
+# post tick failed for a day, though a working Anthropic key sat in the env.
+WRITER_FALLBACK_MODEL = _env("WRITER_FALLBACK_MODEL", "claude-sonnet-5-5")
 
 # Thinking budget (tokens the model may spend reasoning before the post). 0 =
 # disabled — the cheapest setting and plenty for short posts. Raise it (e.g. 1024)

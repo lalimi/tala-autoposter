@@ -936,6 +936,49 @@ class WriterAgent:
             kwargs["base_url"] = settings.WRITER_BASE_URL
         return Anthropic(**kwargs)
 
+    _fallback_client = None
+
+    @staticmethod
+    def _out_of_credit(exc: Exception) -> bool:
+        msg = str(exc).lower()
+        return ("insufficient balance" in msg or "exceeded_current_quota" in msg
+                or "credit balance is too low" in msg)
+
+    @staticmethod
+    def _fallback_kwargs(kw: dict) -> dict:
+        """The Kimi request reshaped for the Claude fallback model. Claude 5
+        models reject sampling parameters, and Sonnet 5.5 rejects
+        thinking={"type": "disabled"}: its thinking-off form is "between_tools".
+        Other models get thinking omitted (adaptive)."""
+        model = settings.WRITER_FALLBACK_MODEL
+        kw = {**kw, "model": model}
+        kw.pop("temperature", None)
+        if (kw.get("thinking") or {}).get("type") == "disabled":
+            if model == "claude-sonnet-5-5":
+                kw["thinking"] = {"type": "between_tools"}
+            else:
+                kw.pop("thinking")
+        return kw
+
+    def _create(self, client, **kw):
+        """messages.create with a way out when the Kimi account is empty: the
+        same request goes to Claude through the direct Anthropic key. Each
+        WriterAgent tries Kimi first, so topping it up switches back by itself."""
+        if self._fallback_client is not None:
+            return self._fallback_client.messages.create(**self._fallback_kwargs(kw))
+        try:
+            return client.messages.create(**kw)
+        except Exception as exc:
+            if not (settings.KIMI_API_KEY and settings.ANTHROPIC_API_KEY
+                    and self._out_of_credit(exc)):
+                raise
+            from anthropic import Anthropic
+
+            logger.warning("writer: Kimi is out of balance, using %s instead",
+                           settings.WRITER_FALLBACK_MODEL)
+            self._fallback_client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+            return self._fallback_client.messages.create(**self._fallback_kwargs(kw))
+
     def _call(self, client, messages: list, max_tokens: int | None = None) -> str:
         # Thinking models (kimi-k3, sonnet-5) prepend a ThinkingBlock and can
         # burn the whole budget on it, returning no text at all — so take text
@@ -947,7 +990,8 @@ class WriterAgent:
             else {"type": "disabled"}
         )
         for _attempt in range(2):
-            response = client.messages.create(
+            response = self._create(
+                client,
                 model=self.model,
                 max_tokens=budget,
                 system=self.system_prompt,

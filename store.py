@@ -301,17 +301,25 @@ def author_baselines(usernames: list[str]) -> dict[str, float]:
     return out
 
 
-def next_fact(prefix: str = "tala") -> dict | None:
+def next_fact(prefix: str = "tala", cooldown_hours: int = 0) -> dict | None:
     """The least-used active fact for this brand — real material the post is
     grounded in. The writer only ever had three hardcoded numbers (447 грн, 94
     продажі, 60к) and was structurally forced to rephrase them forever; measured
     against the owner's own posts, which each carried NEW real information, the
-    bot lost ~1.8x on median views and ~1.9x on likes."""
-    rows = _req("GET", "brand_facts", params={
+    bot lost ~1.8x on median views and ~1.9x on likes.
+
+    With `cooldown_hours`, a fact used within that window is not offered again
+    and the post goes without one: ten fresh facts at used_count 0 were each
+    retold four times in a week, so readers saw "52 сторінки" five times."""
+    params = {
         "select": "id,kind,text,detail,used_count",
         "brand": f"eq.{prefix}", "active": "is.true",
         "order": "used_count.asc,last_used_at.asc.nullsfirst", "limit": 1,
-    }) or []
+    }
+    if cooldown_hours:
+        params["or"] = (f"(last_used_at.is.null,"
+                        f"last_used_at.lt.{_cutoff_iso(cooldown_hours)})")
+    rows = _req("GET", "brand_facts", params=params) or []
     return rows[0] if rows else None
 
 

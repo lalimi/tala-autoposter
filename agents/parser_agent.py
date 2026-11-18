@@ -45,7 +45,9 @@ class ParserAgent:
         seed = store.top_seed(keywords, prefix=self.prefix)
         # Real material this brand owns, rotated least-used-first. Without it the
         # writer can only recycle the handful of facts baked into its prompt.
-        fact = store.next_fact(prefix=self.prefix)
+        fact = store.next_fact(
+            prefix=self.prefix,
+            cooldown_hours=getattr(self.brand, "fact_cooldown_hours", 0))
 
         keyword = keywords[0]
         angle = self.brand.angle_template.format(keyword=keyword)

@@ -88,12 +88,18 @@ def run_pipeline(
     now = datetime.now(timezone.utc)
     brand_hook = None
     hook_index = -1
+    hook_tag = ""
     if brand.hooks:
         # A brand with its own hooks draws one by weight. The hour cycle below
         # is useless for an account that posts at the same hours every day.
         brand_hook = pick_brand_hook(
             brand.hooks, recent_hook_keys(store.recent_formats(brand.table_prefix, 2)))
-        hook, opening = brand_hook.text, None
+        hook, hook_tag = brand_hook.render(
+            store.recent_post_texts(brand.table_prefix, 15))
+        opening = None
+        if not brand_hook.uses_fact:
+            # None also keeps the pipeline from retiring a fact it never used.
+            brief["fact"] = None
         logger.info("[%s] hook: %s", brand.key, brand_hook.key)
     else:
         # A brand may weight the rotation instead of taking every hook equally
@@ -188,7 +194,7 @@ def run_pipeline(
     # topic's search and feed for people who don't follow the account.
     extra = {}
     if brand.platform == "threads":
-        tag = memory.topic_tag(topic)
+        tag = hook_tag or memory.topic_tag(topic)
         if tag:
             extra["topic_tag"] = tag
             logger.info("[%s] topic tag: %s", brand.key, tag)

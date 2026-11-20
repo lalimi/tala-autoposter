@@ -241,10 +241,12 @@ def as_fact(d: dict) -> dict:
     price = ("плати скільки хочеш, від " if d["pwyw"] else "") + f"{d['price']:g} грн"
     if d.get("recurrence"):
         price += f" ({d['recurrence']})"
-    lines = [f"назва: {d['name']}", f"автор: {d['seller']}", f"ціна: {price}"]
+    # No author line: Lalita, 20.11, "без імен некрасиво так писати". What
+    # the model is never told, it cannot write.
+    lines = [f"назва: {d['name']}", f"ціна: {price}"]
     if d["ratings_count"] >= 3:
         lines.append(f"оцінка: {d['ratings_average']:g} з 5, відгуків: {d['ratings_count']}")
     if d.get("summary"):
         lines.append(f"коротко: {d['summary']}")
-    lines.append(f"опис від автора:\n{d['description']}")
+    lines.append(f"опис:\n{d['description']}")
     return {"id": None, "text": "\n".join(lines), "detail": None}

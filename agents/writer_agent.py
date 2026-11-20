@@ -495,8 +495,21 @@ class WriterAgent:
         # sometimes adds one); turn it into a plain paragraph break.
         return self._strip_dividers(text)
 
+    @staticmethod
+    def _name_pattern(name: str):
+        """A regex for a person's name in any case form ("Влад Овчарук" also
+        matches "Влада Овчарука"), or None when the seller name is a shop or
+        brand ("Excel за дві хвилини", "Artwork Nocturnal"), where checking
+        would flag the product's own subject."""
+        words = (name or "").split()
+        if not 1 <= len(words) <= 3 or not all(
+                re.fullmatch(r"[А-ЯІЇЄҐ][а-яіїєґʼ'’-]{2,}", w) for w in words):
+            return None
+        stems = [w[:-1] if len(w) >= 5 else w for w in words]
+        return re.compile(r"\b(?:" + "|".join(map(re.escape, stems)) + r")\w*")
+
     def run_promo(self, fact: dict, memory, hook: str,
-                  deslop: bool = False) -> str:
+                  deslop: bool = False, author: str = "") -> str:
         """The first part of a product promotion: the pitch, without the link
         (the pipeline posts the link as a reply under it, where it costs the
         post less reach). Everything the post may say comes from `fact`, which
@@ -512,7 +525,9 @@ class WriterAgent:
             f"{self._anti_repeat(recent_openings)}"
             f"ТИП ХУКА (обовʼязково саме цей): {hook}\n\n"
             "правила:\n"
-            "- назви продукт (можна коротше, ніж у назві) і автора так, як на сайті\n"
+            "- назви продукт (можна коротше, ніж у назві). автора чи авторку "
+            "НЕ називай на імʼя і не пиши «від [імʼя]»: можна «авторка», "
+            "«автор», «викладачка», якщо це видно з опису\n"
             "- лише те, що є в описі: що всередині, для кого, що людина "
             "отримає. не вигадуй результатів, відгуків, кількості продажів, "
             "бонусів, знижок, термінів чи гарантій\n"
@@ -540,6 +555,21 @@ class WriterAgent:
         text = self._apply_guards(
             client, text, user_message, recent_openings, sell=False,
             fact=fact, recent_texts=memory.recent_post_texts(), deslop=deslop)
+        # No author names in promotions (Lalita, 20.11). The name is kept out
+        # of the fact, but descriptions often introduce the author.
+        rx = self._name_pattern(author)
+        if rx and rx.search(text):
+            logger.info("promo named the author — regenerating")
+            text = self._call(client, [
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": text},
+                {"role": "user", "content": (
+                    f"у тексті є імʼя автора («{rx.search(text).group(0)}»). "
+                    "прибери імена людей повністю: пиши «авторка», «автор» або "
+                    "безособово. решту збережи. поверни лише текст.")},
+            ])
+            if rx.search(text):
+                logger.warning("promo still names the author after retry")
         return self._trim(self._strip_dividers(text))
 
     def _apply_guards(self, client, text: str, user_message: str,

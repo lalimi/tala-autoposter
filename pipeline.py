@@ -255,12 +255,14 @@ def run_promo(brand: Brand, memory, publish: bool = True) -> str | None:
                 product["seller"], hook.key)
     try:
         pitch = WriterAgent(brand).run_promo(catalog.as_fact(product), memory,
-                                             hook=hook_text, deslop=not hook.keep_form)
+                                             hook=hook_text, deslop=not hook.keep_form,
+                                             author=product["seller"])
     except Exception as exc:
         logger.error("[%s] promo: writing failed (%s), regular post instead",
                      brand.key, exc)
         return None
-    parts = [pitch, f"Автор: {product['seller']}\n{product['url']}"]
+    # The link alone: no author name under the post either (20.11).
+    parts = [pitch, product["url"]]
     post_text = "\n\n---\n\n".join(parts)
     topic = f"promo:{product['id']}:{product['seller_id']}"
     fmt = f"chain:{hook.key}"

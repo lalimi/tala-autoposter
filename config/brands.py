@@ -465,6 +465,36 @@ BLACKSEA_HOOKS = (
 )
 
 
+
+# @blacksea product promotion hooks, 20.11.2026. One product per post, its own
+# page data as the only material (agents/catalog.py), the link posted as a
+# reply. Keys start with "promo_" so the metrics can split promotion from the
+# rest. Raw drafts kept their form better than de-slopped ones (10.11), so the
+# editor is skipped.
+BLACKSEA_PROMO_HOOKS = (
+    Hook("promo_pain", 0.35, None,
+         "ПРОБЛЕМА → РІЧ: перший рядок до 12 слів описує ситуацію читача на "
+         "«ти», яку цей продукт розвʼязує (бери її з опису, не вигадуй). далі "
+         "2-3 речення: що саме всередині і чим це допоможе, назва й автор. "
+         "наприкінці ціна",
+         keep_form=True),
+    Hook("promo_for_whom", 0.25, None,
+         "ДЛЯ КОГО: перший рядок звертається до конкретної групи людей, яким "
+         "це потрібно (професія, ситуація, захоплення з опису), так, щоб вони "
+         "впізнали себе. далі що вони отримають, назва й автор, ціна",
+         keep_form=True),
+    Hook("promo_inside", 0.25, None,
+         "ЩО ВСЕРЕДИНІ: перший рядок — найконкретніша деталь зі змісту (що "
+         "саме, скільки сторінок, шаблонів, уроків, лише якщо це є в описі). "
+         "далі короткий список 3-5 пунктів «що всередині», назва й автор, ціна",
+         keep_form=True),
+    Hook("promo_price", 0.15, None,
+         "ЦІНА З УСМІШКОЮ: перший рядок — точна ціна і легке побутове "
+         "порівняння словами, без інших цифр (за ціною як [щось буденне]). "
+         "далі що за ці гроші, назва й автор",
+         keep_form=True),
+)
+
 @dataclass(frozen=True)
 class Brand:
     key: str                 # short id, e.g. "tala" / "blacksea"
@@ -552,6 +582,10 @@ class Brand:
     hooks: tuple[Hook, ...] = ()
     # Hours before a used fact may be offered again (0 = no pause).
     fact_cooldown_hours: int = 0
+    # Product promotion (agents/catalog.py): every Nth post promotes one
+    # marketplace product (2 = every other post). 0 = off.
+    promo_every: int = 0
+    promo_hooks: tuple[Hook, ...] = ()
 
 
 TALA = Brand(
@@ -617,6 +651,9 @@ BLACKSEA = Brand(
     seed_token_attr="BLACKSEA_THREADS_ACCESS_TOKEN",
     hooks=BLACKSEA_HOOKS,
     fact_cooldown_hours=72,
+    # 20.11.2026, Lalita: "нам бракує покупців", promote the products.
+    promo_every=2,
+    promo_hooks=BLACKSEA_PROMO_HOOKS,
     # Mostly single friendly posts; occasionally a short tips list.
     chain_probability=settings.BLACKSEA_CHAIN_PROBABILITY,
     min_gap_minutes=settings.BLACKSEA_MIN_GAP_MINUTES,

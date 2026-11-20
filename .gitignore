@@ -6,3 +6,4 @@ data/*.db
 data/threads_token.json
 logs/*.log
 parser/scout_session.json
+data/*_catalog.json

@@ -34,7 +34,10 @@ class MemoryAgent:
         return store.least_used_topic(self._topic_names(), prefix=self.prefix)
 
     def get_recent_topics(self, hours: int = 48) -> list[str]:
-        return store.recent_topics(hours, prefix=self.prefix)
+        # Product promotions store "promo:<id>:<seller>" as their topic; those
+        # ids mean nothing to the writer of a regular post.
+        return [t for t in store.recent_topics(hours, prefix=self.prefix)
+                if not (t or "").startswith("promo:")]
 
     def get_best_performing_post(self) -> str:
         # Best by views (learning); falls back to the latest post if no metrics.

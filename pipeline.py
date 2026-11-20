@@ -61,6 +61,14 @@ def run_pipeline(
             return None
 
     memory = MemoryAgent(brand)
+
+    # Every Nth post promotes one marketplace product. When the catalog is
+    # unreachable or nothing qualifies, the tick falls through to a regular post.
+    if brand.promo_every and brand.promo_hooks and _promo_due(brand):
+        text = run_promo(brand, memory, publish=publish)
+        if text is not None:
+            return text
+
     topic = memory.get_least_used_topic()
     logger.info("[%s] topic selected: %s", brand.key, topic)
 
@@ -216,6 +224,81 @@ def run_pipeline(
         logger.error("[%s] publish failed | %s | %s | %s | kept as draft",
                      brand.key, fmt, topic, exc)
 
+    return post_text
+
+
+def _promo_due(brand: Brand) -> bool:
+    """True when none of the last (promo_every - 1) posts was a promotion."""
+    import store
+
+    recent = store.recent_formats(brand.table_prefix, max(1, brand.promo_every - 1))
+    return not any(":promo_" in (f or "") for f in recent)
+
+
+def run_promo(brand: Brand, memory, publish: bool = True) -> str | None:
+    """One product promotion: the pitch as the first post, with the product's
+    cover, and the link as a reply under it. Returns None when there is no
+    product to promote, so the caller can post something else."""
+    import store
+
+    from agents import catalog
+    from agents.writer_agent import WriterAgent
+
+    product = catalog.next_promo(brand.table_prefix)
+    if not product:
+        logger.info("[%s] promo: no product to promote, regular post instead", brand.key)
+        return None
+    hook = pick_brand_hook(brand.promo_hooks,
+                           recent_hook_keys(store.recent_formats(brand.table_prefix, 4)))
+    hook_text, _ = hook.render()
+    logger.info("[%s] promo: %s (%s) | hook: %s", brand.key, product["name"][:50],
+                product["seller"], hook.key)
+    try:
+        pitch = WriterAgent(brand).run_promo(catalog.as_fact(product), memory,
+                                             hook=hook_text, deslop=not hook.keep_form)
+    except Exception as exc:
+        logger.error("[%s] promo: writing failed (%s), regular post instead",
+                     brand.key, exc)
+        return None
+    parts = [pitch, f"Автор: {product['seller']}\n{product['url']}"]
+    post_text = "\n\n---\n\n".join(parts)
+    topic = f"promo:{product['id']}:{product['seller_id']}"
+    fmt = f"chain:{hook.key}"
+    row_id = memory.save_post(topic, fmt, post_text, None, "draft")
+    logger.info("[%s] draft | %s | %s | %s", brand.key, fmt, topic,
+                pitch[:60].replace("\n", " "))
+    if not publish:
+        return post_text
+
+    from agents.publisher_agent import PublisherAgent
+
+    tag = product.get("category") or "цифрові продукти"
+    pub = PublisherAgent(brand)
+    # The pitch and the link go out as two calls, not one publish_thread: a
+    # retry after a failed link reply would otherwise post the pitch twice.
+    try:
+        try:
+            post_id = pub.publish(parts[0], image_url=product.get("image_url"),
+                                  topic_tag=tag).get("post_id")
+        except Exception as exc:
+            # Meta fetches the cover itself and rejects some; the pitch still
+            # works as text. A failed image container publishes nothing.
+            logger.warning("[%s] promo: image rejected (%s), posting text only",
+                           brand.key, str(exc)[:120])
+            post_id = pub.publish(parts[0], topic_tag=tag).get("post_id")
+    except Exception as exc:
+        memory.mark_failed(row_id)
+        logger.error("[%s] promo publish failed | %s | %s", brand.key, topic, exc)
+        return post_text
+    memory.mark_published(row_id, post_id)
+    for attempt in (1, 2):
+        try:
+            pub.reply_to(parts[1], post_id)
+            break
+        except Exception as exc:
+            logger.warning("[%s] promo: link reply failed (try %d): %s",
+                           brand.key, attempt, str(exc)[:120])
+    logger.info("[%s] published | %s | %s | id=%s", brand.key, fmt, topic, post_id)
     return post_text
 
 

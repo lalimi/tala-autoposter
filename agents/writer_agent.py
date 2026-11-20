@@ -495,6 +495,53 @@ class WriterAgent:
         # sometimes adds one); turn it into a plain paragraph break.
         return self._strip_dividers(text)
 
+    def run_promo(self, fact: dict, memory, hook: str,
+                  deslop: bool = False) -> str:
+        """The first part of a product promotion: the pitch, without the link
+        (the pipeline posts the link as a reply under it, where it costs the
+        post less reach). Everything the post may say comes from `fact`, which
+        holds the product's own page data, and the guards hold figures to it."""
+        recent_openings = memory.recent_openings()
+        limit = self.max_chars - 20
+        user_message = (
+            "напиши пост для threads, який продає ОДИН конкретний продукт з "
+            "маркетплейсу blacksea. ти вітрина, яка знайшла річ, що варто "
+            "купити, голос бренду з системного промпта.\n\n"
+            "ПРОДУКТ (усе, що ти про нього знаєш; понад це нічого не "
+            f"вигадуй):\n{fact['text']}\n\n"
+            f"{self._anti_repeat(recent_openings)}"
+            f"ТИП ХУКА (обовʼязково саме цей): {hook}\n\n"
+            "правила:\n"
+            "- назви продукт (можна коротше, ніж у назві) і автора так, як на сайті\n"
+            "- лише те, що є в описі: що всередині, для кого, що людина "
+            "отримає. не вигадуй результатів, відгуків, кількості продажів, "
+            "бонусів, знижок, термінів чи гарантій\n"
+            "- ціну назви точно, як у рядку «ціна». оцінку згадуй, лише якщо "
+            "рядок «оцінка» є\n"
+            "- опис автора часто від першої особи: переказуй безособово або "
+            "цитуй коротко в «лапках»\n"
+            "- посилання НЕ вставляй: його додадуть відповіддю під постом. "
+            "останній рядок може сказати, що посилання нижче\n"
+            "- перший рядок не починається з назви платформи і не є "
+            "заголовком-оголошенням («новий продукт», «рекомендуємо»)\n"
+            f"- максимум {limit} символів.\n"
+            "поверни лише текст поста, без пояснень і без лапок навколо."
+        )
+        client = self._client()
+        text = self._call(client, [{"role": "user", "content": user_message}])
+        if len(text) > limit:
+            text = self._call(client, [
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": text},
+                {"role": "user", "content": (
+                    f"задовгий ({len(text)} символів). скороти до {limit - 40}, "
+                    "збережи хук, назву, автора й ціну. поверни лише текст.")},
+            ])
+        text = self._apply_guards(
+            client, text, user_message, recent_openings, sell=False,
+            fact=fact, recent_texts=memory.recent_post_texts(), deslop=deslop)
+        return self._trim(self._strip_dividers(text))
+
     def _apply_guards(self, client, text: str, user_message: str,
                       recent_openings: list[str], *, sell: bool = False,
                       via_bio: bool = False, is_chain: bool = False,
